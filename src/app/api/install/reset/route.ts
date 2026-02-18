@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 export async function GET(req: Request) {
     try {
         // 1. Clear Cookie
-        cookies().delete("is_installed");
+        (await cookies()).delete("is_installed");
 
         // 2. Reset DB Status
         await db.systemConfig.upsert({
@@ -26,3 +26,4 @@ export async function GET(req: Request) {
         return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
     }
 }
+// Reset handler

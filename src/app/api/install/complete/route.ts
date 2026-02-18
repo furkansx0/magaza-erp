@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         });
 
         // 2. Set Cookie (Essential for Middleware)
-        cookies().set("is_installed", "true", {
+        (await cookies()).set("is_installed", "true", {
             maxAge: 60 * 60 * 24 * 365 * 10, // 10 years
             httpOnly: false, // Allow client access if needed
             path: "/"
@@ -43,3 +43,4 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: "Kurulum hatası" }, { status: 500 });
     }
 }
+// Install complete handler
