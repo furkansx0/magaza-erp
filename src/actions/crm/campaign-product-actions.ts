@@ -1,6 +1,6 @@
 ﻿"use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { createAuditLog } from "@/actions/settings/audit-actions"
 
@@ -31,7 +31,7 @@ export type ProductCampaignFormValues = {
 
 export async function getProductCampaigns(storeId?: string) {
     try {
-        const campaigns = await prisma.productCampaign.findMany({
+        const campaigns = await db.productCampaign.findMany({
             orderBy: { createdAt: 'desc' },
         });
 
@@ -55,7 +55,7 @@ export async function getProductCampaigns(storeId?: string) {
 
 export async function createProductCampaign(data: ProductCampaignFormValues) {
     try {
-        const campaign = await prisma.productCampaign.create({
+        const campaign = await db.productCampaign.create({
             data: {
                 name: data.name,
                 description: data.description,
@@ -85,7 +85,7 @@ export async function createProductCampaign(data: ProductCampaignFormValues) {
 
 export async function updateProductCampaign(id: string, data: ProductCampaignFormValues) {
     try {
-        await prisma.productCampaign.update({
+        await db.productCampaign.update({
             where: { id },
             data: {
                 name: data.name,
@@ -108,7 +108,7 @@ export async function updateProductCampaign(id: string, data: ProductCampaignFor
 
 export async function deleteProductCampaign(id: string) {
     try {
-        await prisma.productCampaign.delete({
+        await db.productCampaign.delete({
             where: { id }
         });
         revalidatePath("/dashboard/campaigns");
@@ -121,7 +121,7 @@ export async function deleteProductCampaign(id: string) {
 
 export async function toggleProductCampaignStatus(id: string, isActive: boolean) {
     try {
-        await prisma.productCampaign.update({
+        await db.productCampaign.update({
             where: { id },
             data: { isActive }
         });

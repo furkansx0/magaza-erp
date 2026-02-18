@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ export async function createProduct(data: ProductFormValues) {
     try {
         const validated = ProductSchema.parse(data);
 
-        await prisma.product.create({
+        await db.product.create({
             data: {
                 name: validated.name,
                 barcode: validated.barcode,

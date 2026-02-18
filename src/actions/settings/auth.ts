@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { compare } from "bcryptjs"
 import { cookies } from "next/headers"
 import { encrypt } from "@/lib/auth"
@@ -15,7 +15,7 @@ export async function login(formData: FormData) {
     }
 
     try {
-        const user = await prisma.user.findUnique({
+        const user = await db.user.findUnique({
             where: { username }
         })
 

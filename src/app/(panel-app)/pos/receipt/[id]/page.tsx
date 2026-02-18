@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { notFound } from "next/navigation"
 import { PrintButton } from "./print-button" // Client component for print logic
 
 export default async function ReceiptPage({ params }: { params: { id: string } }) {
     const { id } = await params;
 
-    const sale = await prisma.sale.findUnique({
+    const sale = await db.sale.findUnique({
         where: { id },
         include: {
             items: {

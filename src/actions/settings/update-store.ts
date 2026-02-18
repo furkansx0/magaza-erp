@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { hash } from "bcryptjs"
 
@@ -22,13 +22,13 @@ export async function updateStore(prevState: UpdateStoreState, formData: FormDat
         }
 
         // 1. Update Store Name and Location
-        await prisma.store.update({
+        await db.store.update({
             where: { id: storeId },
             data: { name, location }
         })
 
         // 2. Find and Update Associated User
-        const storeWithUsers = await prisma.store.findUnique({
+        const storeWithUsers = await db.store.findUnique({
             where: { id: storeId },
             include: { users: true }
         })
@@ -43,7 +43,7 @@ export async function updateStore(prevState: UpdateStoreState, formData: FormDat
             const hashedPassword = await hash(password, 10)
 
             if (targetUser) {
-                await prisma.user.update({
+                await db.user.update({
                     where: { id: targetUser.id },
                     data: {
                         username: username, // Update username too
@@ -52,7 +52,7 @@ export async function updateStore(prevState: UpdateStoreState, formData: FormDat
                 })
             } else {
                 // Create new user for this store
-                await prisma.user.create({
+                await db.user.create({
                     data: {
                         username: username,
                         password: hashedPassword,
@@ -64,7 +64,7 @@ export async function updateStore(prevState: UpdateStoreState, formData: FormDat
             }
         } else if (targetUser && username !== targetUser.username) {
             // Only update username if changed and no password provided
-            await prisma.user.update({
+            await db.user.update({
                 where: { id: targetUser.id },
                 data: { username: username }
             })

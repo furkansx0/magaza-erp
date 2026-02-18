@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { CreateStoreDialog } from "@/components/stores/create-store-dialog"
 import { StoreCard } from "@/components/stores/store-card"
 import { DeleteStoreDialog } from "@/components/stores/delete-store-dialog"
 import { Store as StoreIcon } from "lucide-react"
 
 export default async function StoresPage() {
-    const stores = await prisma.store.findMany({
+    const stores = await db.store.findMany({
         include: {
             _count: {
                 select: { users: true, sales: true }

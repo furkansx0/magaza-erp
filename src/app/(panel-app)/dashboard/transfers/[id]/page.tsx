@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { TransferDetailView } from "@/components/transfers/transfer-detail-view";
 import { notFound } from "next/navigation";
 import { PendingTransferProcessView } from "@/components/transfers/pending-transfer-process-view";
 
 export default async function TransferDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const transfer = await prisma.stockTransfer.findUnique({
+    const transfer = await db.stockTransfer.findUnique({
         where: { id },
         include: {
             sourceStore: true,

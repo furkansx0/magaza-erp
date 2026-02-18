@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
 const STORE_NAMES = ["Merkez Şube", "AVM Mağaza", "Cadde Mağaza"]
@@ -40,9 +40,9 @@ export async function generateRandomData() {
         const stores = []
         for (const name of STORE_NAMES) {
             // Try to find existing first to avoid duplicates if run multiple times
-            let store = await prisma.store.findFirst({ where: { name } })
+            let store = await db.store.findFirst({ where: { name } })
             if (!store) {
-                store = await prisma.store.create({
+                store = await db.store.create({
                     data: {
                         name,
                         code: name.substring(0, 3).toUpperCase() + "-" + getRandomInt(100, 999),
@@ -61,9 +61,9 @@ export async function generateRandomData() {
                 const name = getRandomItem(USER_NAMES)
                 const username = name.toLowerCase().replace(" ", "") + getRandomInt(1, 999)
                 // Check if exists
-                let user = await prisma.user.findUnique({ where: { username } })
+                let user = await db.user.findUnique({ where: { username } })
                 if (!user) {
-                    user = await prisma.user.create({
+                    user = await db.user.create({
                         data: {
                             username,
                             password: "123", // Dummy password
@@ -85,7 +85,7 @@ export async function generateRandomData() {
             const subCategory = getRandomItem(SUB_CATEGORIES)
             const modelName = `${brand} ${subCategory} ${getRandomInt(100, 999)}`
 
-            const model = await prisma.productModel.create({
+            const model = await db.productModel.create({
                 data: {
                     name: modelName,
                     brand,
@@ -106,7 +106,7 @@ export async function generateRandomData() {
                 const barcode = "869" + getRandomInt(1000000000, 9999999999) // Simple EAN13 sim
 
                 // Check barcode unique
-                const output = await prisma.productVariant.upsert({
+                const output = await db.productVariant.upsert({
                     where: { barcode },
                     update: {},
                     create: {
@@ -129,7 +129,7 @@ export async function generateRandomData() {
         for (const store of stores) {
             for (const variant of variants) {
                 const quantity = getRandomInt(10, 100)
-                await prisma.stock.upsert({
+                await db.stock.upsert({
                     where: {
                         variantId_storeId: {
                             storeId: store.id,
@@ -152,9 +152,9 @@ export async function generateRandomData() {
         // 5. Create Customers
         const customers = []
         for (const name of CUSTOMER_NAMES) {
-            let customer = await prisma.customer.findFirst({ where: { name } })
+            let customer = await db.customer.findFirst({ where: { name } })
             if (!customer) {
-                customer = await prisma.customer.create({
+                customer = await db.customer.create({
                     data: {
                         name,
                         phone: "05" + getRandomInt(100000000, 999999999),
@@ -195,7 +195,7 @@ export async function generateRandomData() {
             }
 
             // Create Sale
-            const sale = await prisma.sale.create({
+            const sale = await db.sale.create({
                 data: {
                     storeId: store.id,
                     cashierId: cashier.id,
@@ -225,7 +225,7 @@ export async function generateRandomData() {
             // UPDATE STOCK & CREATE MOVEMENTS
             for (const item of saleItemsData) {
                 // Decrement Stock
-                const stock = await prisma.stock.findUnique({
+                const stock = await db.stock.findUnique({
                     where: {
                         variantId_storeId: {
                             storeId: store.id,
@@ -236,13 +236,13 @@ export async function generateRandomData() {
 
                 if (stock) {
                     const newQty = stock.quantity - item.quantity
-                    await prisma.stock.update({
+                    await db.stock.update({
                         where: { id: stock.id },
                         data: { quantity: newQty }
                     })
 
                     // Add Movement
-                    await prisma.stockMovement.create({
+                    await db.stockMovement.create({
                         data: {
                             storeId: store.id,
                             variantId: item.variant.id,
@@ -272,7 +272,7 @@ export async function clearDemoData() {
         console.log("Starting demo data cleanup...")
 
         // 1. Identify Demo Stores
-        const demoStores = await prisma.store.findMany({
+        const demoStores = await db.store.findMany({
             where: { name: { in: STORE_NAMES } }
         })
         const demoStoreIds = demoStores.map(s => s.id)
@@ -288,7 +288,7 @@ export async function clearDemoData() {
         // Let's rely on deleting the Sale.
 
         // Delete Movements in Demo Stores
-        await prisma.stockMovement.deleteMany({
+        await db.stockMovement.deleteMany({
             where: { storeId: { in: demoStoreIds } }
         })
 
@@ -297,27 +297,27 @@ export async function clearDemoData() {
         // but if not, we might error. Assuming standard relation or manual delete.
         // Let's manually delete dependants to be safe if schema doesn't cascade.
         // Get sales to delete
-        const sales = await prisma.sale.findMany({
+        const sales = await db.sale.findMany({
             where: { storeId: { in: demoStoreIds } },
             select: { id: true }
         })
         const saleIds = sales.map(s => s.id)
 
         if (saleIds.length > 0) {
-            await prisma.saleItem.deleteMany({ where: { saleId: { in: saleIds } } })
-            await prisma.salePayment.deleteMany({ where: { saleId: { in: saleIds } } })
-            await prisma.sale.deleteMany({ where: { id: { in: saleIds } } })
+            await db.saleItem.deleteMany({ where: { saleId: { in: saleIds } } })
+            await db.salePayment.deleteMany({ where: { saleId: { in: saleIds } } })
+            await db.sale.deleteMany({ where: { id: { in: saleIds } } })
         }
 
         // 3. Delete Stocks in Demo Stores
-        await prisma.stock.deleteMany({
+        await db.stock.deleteMany({
             where: { storeId: { in: demoStoreIds } }
         })
 
         // 4. Delete Users in Demo Stores
         // Wait, what if I logged into one? NextAuth might complain if session user deletes self.
         // Assuming we are admin (not one of the demo users).
-        await prisma.user.deleteMany({
+        await db.user.deleteMany({
             where: {
                 username: { not: "admin" }, // just in case
                 storeId: { in: demoStoreIds }
@@ -325,12 +325,12 @@ export async function clearDemoData() {
         })
 
         // 5. Delete Customers (Only matching names)
-        await prisma.customer.deleteMany({
+        await db.customer.deleteMany({
             where: { name: { in: CUSTOMER_NAMES } }
         })
 
         // 6. Delete Demo Stores
-        await prisma.store.deleteMany({
+        await db.store.deleteMany({
             where: { id: { in: demoStoreIds } }
         })
 
@@ -342,14 +342,14 @@ export async function clearDemoData() {
         // If they don't exist in other stores, they are likely garbage.
 
         // Find variants that have NO stocks
-        const variantsWithStock = await prisma.stock.findMany({
+        const variantsWithStock = await db.stock.findMany({
             select: { variantId: true },
             distinct: ['variantId']
         })
         const usedVariantIds = new Set(variantsWithStock.map(s => s.variantId))
 
         // Get all variants
-        const allVariants = await prisma.productVariant.findMany({
+        const allVariants = await db.productVariant.findMany({
             include: { model: true }
         })
 
@@ -364,7 +364,7 @@ export async function clearDemoData() {
 
         if (variantIdsToDelete.length > 0) {
             // Delete variants
-            await prisma.productVariant.deleteMany({
+            await db.productVariant.deleteMany({
                 where: { id: { in: variantIdsToDelete } }
             })
         }
@@ -373,9 +373,9 @@ export async function clearDemoData() {
         // Check if models have other variants?
         // Simpler: Just delete models that have no variants now.
         for (const mid of modelIdsToCheck) {
-            const count = await prisma.productVariant.count({ where: { modelId: mid } })
+            const count = await db.productVariant.count({ where: { modelId: mid } })
             if (count === 0) {
-                await prisma.productModel.delete({ where: { id: mid } })
+                await db.productModel.delete({ where: { id: mid } })
             }
         }
 

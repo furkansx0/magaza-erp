@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 
 // Calculates the current Expected Cash in the Drawer
 // Formula: (Total Cash Sales) - (Total Expenses)
@@ -13,7 +13,7 @@ export async function getStoreCashBalance(storeId: string) {
 
     try {
         // 1. Sum of all CASH sales
-        const salesAgg = await prisma.salePayment.aggregate({
+        const salesAgg = await db.salePayment.aggregate({
             _sum: { amount: true },
             where: {
                 method: "CASH",
@@ -22,7 +22,7 @@ export async function getStoreCashBalance(storeId: string) {
         });
 
         // 2. Sum of all Expenses
-        const expensesAgg = await prisma.storeExpense.aggregate({
+        const expensesAgg = await db.storeExpense.aggregate({
             _sum: { amount: true },
             where: { storeId: storeId }
         });

@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 
 export type ProductFilterParams = {
@@ -106,7 +106,7 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
         }
 
         const [products, total] = await Promise.all([
-            prisma.productModel.findMany({
+            db.productModel.findMany({
                 where,
                 include: {
                     variants: {
@@ -125,7 +125,7 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
                 take: limit,
                 orderBy: { createdAt: 'desc' }
             }),
-            prisma.productModel.count({ where })
+            db.productModel.count({ where })
         ]);
 
         // Aggregate Metadata for Facets (Facets should ideally come from a cached summary or separate query)
@@ -162,17 +162,17 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
 export async function getFilterFacets() {
     try {
         const [brands, categories, seasons] = await Promise.all([
-            prisma.productModel.findMany({
+            db.productModel.findMany({
                 select: { brand: true },
                 distinct: ['brand'],
                 where: { isArchived: false, brand: { not: null } }
             }),
-            prisma.productModel.findMany({
+            db.productModel.findMany({
                 select: { category: true },
                 distinct: ['category'],
                 where: { isArchived: false, category: { not: null } }
             }),
-            prisma.productModel.findMany({
+            db.productModel.findMany({
                 select: { season: true },
                 distinct: ['season'],
                 where: { isArchived: false, season: { not: null } }

@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ export async function adjustStock(data: z.infer<typeof StockAdjustmentSchema>) {
         const { variantId, storeId, quantity, type, reason } = StockAdjustmentSchema.parse(data);
 
         // Find existing stock record
-        const existingStock = await prisma.stock.findUnique({
+        const existingStock = await db.stock.findUnique({
             where: {
                 variantId_storeId: {
                     variantId,
@@ -34,7 +34,7 @@ export async function adjustStock(data: z.infer<typeof StockAdjustmentSchema>) {
         }
 
         // Upsert Stock
-        await prisma.stock.upsert({
+        await db.stock.upsert({
             where: {
                 variantId_storeId: {
                     variantId,
@@ -85,7 +85,7 @@ export async function checkGlobalStock(query: string): Promise<{ success: boolea
     }
 
     try {
-        const variants = await prisma.productVariant.findMany({
+        const variants = await db.productVariant.findMany({
             where: {
                 OR: [
                     { barcode: { contains: query } },

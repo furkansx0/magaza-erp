@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
 
 import { getStoreCashBalance } from "./cash-actions";
@@ -35,7 +35,7 @@ export async function addCashClosing(data: {
         const adjustmentAmount = systemBalance - data.countedCash;
 
         // 2. Create Closing Log
-        await prisma.cashRegisterClosing.create({
+        await db.cashRegisterClosing.create({
             data: {
                 countedCash: data.countedCash,
                 cashDifference: diff, // Store raw diff (Count - Sys) for reporting "High/Low"
@@ -56,7 +56,7 @@ export async function addCashClosing(data: {
 
             if (data.note) desc += ` - Not: ${data.note}`;
 
-            await prisma.storeExpense.create({
+            await db.storeExpense.create({
                 data: {
                     amount: adjustmentAmount, // 50 or -50
                     description: desc,
@@ -82,7 +82,7 @@ export async function getDailyCashClosings(storeId: string) {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
 
-    const closings = await prisma.cashRegisterClosing.findMany({
+    const closings = await db.cashRegisterClosing.findMany({
         where: {
             storeId,
             createdAt: {

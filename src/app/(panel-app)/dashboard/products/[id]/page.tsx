@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { EditProductClient } from "./edit-client";
 import { notFound } from "next/navigation";
 
@@ -9,7 +9,7 @@ interface PageProps {
 export default async function EditProductPage({ params }: PageProps) {
     const { id } = await params; // Await params in Next.js 15+
 
-    const product = await prisma.productModel.findUnique({
+    const product = await db.productModel.findUnique({
         where: { id },
         include: {
             variants: {
@@ -21,7 +21,7 @@ export default async function EditProductPage({ params }: PageProps) {
 
     if (!product) return notFound();
 
-    const stores = await prisma.store.findMany({
+    const stores = await db.store.findMany({
         select: { id: true, name: true }
     });
 

@@ -1,13 +1,13 @@
 ﻿"use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/actions/settings/audit-actions";
 
 // Toggle Archive Status for Model
 export async function toggleModelArchive(modelId: string, isArchived: boolean) {
     try {
-        await prisma.productModel.update({
+        await db.productModel.update({
             where: { id: modelId },
             data: { isArchived }
         });
@@ -28,7 +28,7 @@ export async function toggleModelArchive(modelId: string, isArchived: boolean) {
 // Toggle Archive Status for Variant
 export async function toggleVariantArchive(variantId: string, isArchived: boolean) {
     try {
-        await prisma.productVariant.update({
+        await db.productVariant.update({
             where: { id: variantId },
             data: { isArchived }
         });
@@ -44,7 +44,7 @@ export async function toggleVariantArchive(variantId: string, isArchived: boolea
 // Toggle Archive Status for Store Stock (Store Specific Passive)
 export async function toggleStockArchive(variantId: string, storeId: string, isArchived: boolean) {
     try {
-        await prisma.stock.upsert({
+        await db.stock.upsert({
             where: {
                 variantId_storeId: {
                     variantId,
@@ -72,7 +72,7 @@ export async function toggleStockArchive(variantId: string, storeId: string, isA
 export async function toggleModelStockArchive(modelId: string, storeId: string, isArchived: boolean) {
     try {
         // Find all variants of the model
-        const variants = await prisma.productVariant.findMany({
+        const variants = await db.productVariant.findMany({
             where: { modelId: modelId },
             select: { id: true }
         });
@@ -86,7 +86,7 @@ export async function toggleModelStockArchive(modelId: string, storeId: string, 
         // Loop and upsert for each variant because updateMany won't create missing records
         // Using Promise.all for parallel execution
         await Promise.all(variantIds.map(variantId =>
-            prisma.stock.upsert({
+            db.stock.upsert({
                 where: {
                     variantId_storeId: {
                         variantId,

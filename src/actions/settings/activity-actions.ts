@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { startOfDay, endOfDay, format } from "date-fns"
 
 export interface ActivityRow {
@@ -46,7 +46,7 @@ export async function getActivityReport(
     }
 
     // Fetch Sales with payments and relations
-    const sales = await prisma.sale.findMany({
+    const sales = await db.sale.findMany({
         where: whereClause,
         include: {
             cashier: { select: { name: true } },

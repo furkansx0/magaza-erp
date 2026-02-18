@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { notFound } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GiftCardList } from "@/components/customers/gift-card-list"
@@ -15,7 +15,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     const { id } = await params
 
     // Deep Fetch for Analytics
-    const rawCustomer = await prisma.customer.findUnique({
+    const rawCustomer = await db.customer.findUnique({
         where: { id },
         include: {
             giftCards: {

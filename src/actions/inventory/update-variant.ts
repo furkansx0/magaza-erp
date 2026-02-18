@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ export async function updateProductVariant(data: z.infer<typeof UpdateVariantSch
     try {
         const { variantId, barcode, sku, purchasePrice, salePrice, stocks } = UpdateVariantSchema.parse(data);
 
-        await prisma.$transaction(async (tx: any) => {
+        await db.$transaction(async (tx: any) => {
             // 1. Update Basic Variant Info
             await tx.productVariant.update({
                 where: { id: variantId },

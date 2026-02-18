@@ -1,12 +1,12 @@
 ﻿"use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/actions/settings/audit-actions";
 
 export async function getCustomer(id: string) {
     if (!id) return null;
-    return await prisma.customer.findUnique({
+    return await db.customer.findUnique({
         where: { id },
         include: {
             giftCards: {
@@ -28,7 +28,7 @@ export async function getCustomer(id: string) {
 // Update Customer Action
 export async function updateCustomer(id: string, data: any) {
     try {
-        const customer = await prisma.customer.update({
+        const customer = await db.customer.update({
             where: { id },
             data: {
                 name: data.name,

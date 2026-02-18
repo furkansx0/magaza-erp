@@ -1,4 +1,4 @@
-﻿import { prisma } from "@/lib/db"
+﻿import { db } from "@/lib/db"
 import { getCampaigns } from "@/actions/crm/campaign-actions"
 import { getProductCampaigns } from "@/actions/crm/campaign-product-actions"
 
@@ -14,12 +14,12 @@ export default async function CampaignsPage() {
     const productCampaigns = await getProductCampaigns();
 
     // Fetch unique categories and brands for the filter dropdowns
-    const categories = await prisma.productModel.findMany({
+    const categories = await db.productModel.findMany({
         where: { isArchived: false },
         select: { category: true },
         distinct: ['category']
     });
-    const brands = await prisma.productModel.findMany({
+    const brands = await db.productModel.findMany({
         where: { isArchived: false },
         select: { brand: true },
         distinct: ['brand']

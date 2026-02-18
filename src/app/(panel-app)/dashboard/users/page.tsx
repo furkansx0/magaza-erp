@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { CreateSystemUserDialog } from "@/components/users/create-system-user-dialog"
 import { DeleteUserButton } from "@/components/users/delete-user-button" // Reuse or creating new
 import {
@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge"
 
 export default async function UsersPage() {
     // Only fetch SYSTEM_USERs
-    const users = await prisma.user.findMany({
+    const users = await db.user.findMany({
         where: { role: "SYSTEM_USER" },
         orderBy: { createdAt: 'desc' }
     })

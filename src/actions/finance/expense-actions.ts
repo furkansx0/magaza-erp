@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
 
 import { getStoreCashBalance } from "./cash-actions";
@@ -20,7 +20,7 @@ export async function addStoreExpense(data: {
             };
         }
 
-        await prisma.storeExpense.create({
+        await db.storeExpense.create({
             data: {
                 amount: data.amount,
                 description: data.description,
@@ -44,7 +44,7 @@ export async function getDailyStoreExpenses(storeId: string) {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
 
-    const expenses = await prisma.storeExpense.findMany({
+    const expenses = await db.storeExpense.findMany({
         where: {
             storeId,
             createdAt: {

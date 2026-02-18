@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { formatDistanceToNow } from "date-fns"
 import { tr } from "date-fns/locale"
 
 export default async function RecommendationsPage() {
-    const recommendations = await prisma.stockTransfer.findMany({
+    const recommendations = await db.stockTransfer.findMany({
         where: { status: "RECOMMENDED" },
         include: {
             sourceStore: true,

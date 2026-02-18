@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { notFound } from "next/navigation"
 import { EditStoreDialog } from "@/components/stores/edit-store-dialog"
@@ -13,7 +13,7 @@ interface PageProps {
 export default async function StoreDetailPage({ params }: PageProps) {
     const { id } = await params;
 
-    const store = await prisma.store.findUnique({
+    const store = await db.store.findUnique({
         where: { id },
         include: { users: true }
     })

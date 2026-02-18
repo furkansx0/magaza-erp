@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { generateNextBarcodes } from "@/actions/inventory/barcode-actions";
 import { revalidatePath } from "next/cache";
 
@@ -33,7 +33,7 @@ export async function seedProductsBatch(batchSize: number, storeIds: string[]) {
         const barcodes = barcodeRes.barcodes;
         let barcodeIndex = 0;
 
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             for (let i = 0; i < batchSize; i++) {
                 // 1. Pick Category & Brand
                 const categories = Object.keys(BRANDS);
@@ -117,7 +117,7 @@ const PAYMENT_METHODS = ["Nakit", "Kredi Kartı", "Havale"];
 // Enhanced Sales Seeding
 export async function seedSales(count: number, storeIdOverride: string = "mixed") {
     try {
-        const variants = await prisma.productVariant.findMany({
+        const variants = await db.productVariant.findMany({
             take: 200,
             where: { isArchived: false } as any, // Only active if field exists, else ignore
             select: { id: true, salePrice: true, model: { select: { name: true } } }
@@ -127,9 +127,9 @@ export async function seedSales(count: number, storeIdOverride: string = "mixed"
         // Fetch all active stores if 'mixed', else specific
         let targetStores: any[] = [];
         if (storeIdOverride === "mixed") {
-            targetStores = await prisma.store.findMany({ include: { users: true } });
+            targetStores = await db.store.findMany({ include: { users: true } });
         } else {
-            targetStores = await prisma.store.findMany({ where: { id: storeIdOverride }, include: { users: true } });
+            targetStores = await db.store.findMany({ where: { id: storeIdOverride }, include: { users: true } });
         }
         if (targetStores.length === 0) return { success: false, error: "Mağaza bulunamadı." };
 
@@ -147,9 +147,9 @@ export async function seedSales(count: number, storeIdOverride: string = "mixed"
         // Let's create a batch of customers first if count is high?
         // For simplicity: Create 1 customer per sale OR pick random existing.
         // Let's pick random existing if available to simulate returning customers, otherwise create new.
-        const existingCustomers = await prisma.customer.findMany({ select: { id: true }, take: 100 });
+        const existingCustomers = await db.customer.findMany({ select: { id: true }, take: 100 });
 
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             for (let i = 0; i < count; i++) {
                 // 1. Context: Store & Cashier
                 const store = getRandom(targetStores);
@@ -256,10 +256,10 @@ export async function seedSales(count: number, storeIdOverride: string = "mixed"
 
 export async function seedGiftCards(count: number) {
     try {
-        const customers = await prisma.customer.findMany({ select: { id: true }, take: 50 });
+        const customers = await db.customer.findMany({ select: { id: true }, take: 50 });
         if (customers.length === 0) return { success: false, error: "Önce müşteri oluşturmalısınız." };
 
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             for (let i = 0; i < count; i++) {
                 const customer = getRandom(customers);
                 const isPercentage = Math.random() > 0.7; // 30% percentage cards
@@ -295,7 +295,7 @@ export async function seedGiftCards(count: number) {
 // Helper to Create Just Customers
 export async function seedCustomers(count: number) {
     try {
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             for (let i = 0; i < count; i++) {
                 const name = getRandom(NAMES);
                 const surname = getRandom(SURNAMES);

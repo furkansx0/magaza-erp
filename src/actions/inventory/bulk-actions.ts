@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export type BulkPriceOperation = {
@@ -13,7 +13,7 @@ export async function bulkUpdatePrice(variantIds: string[], operation: BulkPrice
         if (variantIds.length === 0) return { success: false, error: "Ürün seçilmedi." };
 
         // Transactional update for safety
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             // Fetch current prices to calculate %
             const variants = await tx.productVariant.findMany({
                 where: { id: { in: variantIds } }
@@ -49,7 +49,7 @@ export async function bulkUpdatePrice(variantIds: string[], operation: BulkPrice
 export async function bulkArchive(variantIds: string[]) {
     try {
         // Archive Variants
-        const res = await prisma.productVariant.updateMany({
+        const res = await db.productVariant.updateMany({
             where: { id: { in: variantIds } },
             data: { isArchived: true }
         });
@@ -64,7 +64,7 @@ export async function bulkArchive(variantIds: string[]) {
 
 export async function bulkUnarchive(variantIds: string[]) {
     try {
-        const res = await prisma.productVariant.updateMany({
+        const res = await db.productVariant.updateMany({
             where: { id: { in: variantIds } },
             data: { isArchived: false }
         });
@@ -82,7 +82,7 @@ export async function bulkDelete(variantIds: string[]) {
         let deletedCount = 0;
         let skippedCount = 0;
 
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             // 1. Fetch variants with their sales count
             const variantsToCheck = await tx.productVariant.findMany({
                 where: { id: { in: variantIds } },

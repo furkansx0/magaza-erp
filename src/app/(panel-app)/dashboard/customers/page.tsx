@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { CustomerGridView, CustomerGridRow } from "@/components/customers/customer-grid-view"
 
 export const dynamic = 'force-dynamic'
@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export default async function CustomersPage() {
     // Fetch all customers for client-side virtualization (similar to Products)
     // We include Sales to calculate stats
-    const customers = await prisma.customer.findMany({
+    const customers = await db.customer.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
             sales: {

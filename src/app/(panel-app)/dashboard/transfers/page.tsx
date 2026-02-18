@@ -1,5 +1,5 @@
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Plane, Truck, CheckCircle2 } from "lucide-react";
@@ -11,7 +11,7 @@ import { PendingTransfersDialog } from "@/components/transfers/pending-transfers
 import { RecommendedTransfersView } from "@/components/transfers/recommended-transfers-view";
 
 export default async function TransferListPage() {
-    const allTransfers = await prisma.stockTransfer.findMany({
+    const allTransfers = await db.stockTransfer.findMany({
         include: {
             sourceStore: true,
             targetStore: true,

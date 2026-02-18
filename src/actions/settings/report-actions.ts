@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format } from "date-fns"
 import { tr } from "date-fns/locale"
 
@@ -45,7 +45,7 @@ export async function getSalesReport(
     }
 
     // 1. Fetch Sales with Items and Variant (for Cost)
-    const sales = await prisma.sale.findMany({
+    const sales = await db.sale.findMany({
         where: whereClause,
         include: {
             items: {

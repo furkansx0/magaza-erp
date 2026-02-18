@@ -1,10 +1,10 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
 
 export async function getCampaigns() {
-    return await prisma.campaign.findMany({
+    return await db.campaign.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
             _count: {
@@ -16,7 +16,7 @@ export async function getCampaigns() {
 
 export async function createCampaign(data: any) {
     try {
-        const campaign = await prisma.campaign.create({
+        const campaign = await db.campaign.create({
             data: {
                 name: data.name,
                 description: data.description,
@@ -41,7 +41,7 @@ export async function createCampaign(data: any) {
 
 export async function toggleCampaign(id: string, currentState: boolean) {
     try {
-        await prisma.campaign.update({
+        await db.campaign.update({
             where: { id },
             data: { isActive: !currentState }
         });
@@ -55,7 +55,7 @@ export async function toggleCampaign(id: string, currentState: boolean) {
 export async function deleteCampaign(id: string) {
     try {
         let deletedCount = 0;
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             // 1. Find all logs to identify generated gift cards
             const logs = await tx.campaignLog.findMany({
                 where: { campaignId: id },
@@ -97,7 +97,7 @@ export async function getCampaignStats(campaignId: string) {
     try {
         // 1. Get all Logs -> GiftCard IDs
         // Defined Count: How many customers were targeted/gifted?
-        const logs = await prisma.campaignLog.findMany({
+        const logs = await db.campaignLog.findMany({
             where: { campaignId: campaignId },
             select: { giftCardId: true }
         });
@@ -121,7 +121,7 @@ export async function getCampaignStats(campaignId: string) {
         // We need to find the specific payments made with these cards to sum "Discount"
         // And find the Sales to sum "Net Revenue"
 
-        const campaignPayments = await prisma.salePayment.findMany({
+        const campaignPayments = await db.salePayment.findMany({
             where: { giftCardId: { in: giftCardIds } },
             select: {
                 amount: true,
@@ -142,7 +142,7 @@ export async function getCampaignStats(campaignId: string) {
 
         let netRevenue = 0;
         if (involvedSaleIds.length > 0) {
-            const realMoneyPayments = await prisma.salePayment.aggregate({
+            const realMoneyPayments = await db.salePayment.aggregate({
                 _sum: { amount: true },
                 where: {
                     saleId: { in: involvedSaleIds },
@@ -169,7 +169,7 @@ export async function getCampaignStats(campaignId: string) {
 
 export async function runCampaign(campaignId: string) {
     try {
-        const campaign = await prisma.campaign.findUnique({
+        const campaign = await db.campaign.findUnique({
             where: { id: campaignId }
         });
 
@@ -220,7 +220,7 @@ export async function runCampaign(campaignId: string) {
         }
 
         // Fetch Candidates
-        const candidates = await prisma.customer.findMany({
+        const candidates = await db.customer.findMany({
             where: whereClause
         });
 
@@ -250,7 +250,7 @@ export async function runCampaign(campaignId: string) {
             // Implementation: Check Log for this campaign + Customer + CreatedAt > StartOfYear
 
             const startOfYear = new Date(today.getFullYear(), 0, 1);
-            const existingLog = await prisma.campaignLog.findFirst({
+            const existingLog = await db.campaignLog.findFirst({
                 where: {
                     campaignId: campaign.id,
                     customerId: customer.id,
@@ -267,7 +267,7 @@ export async function runCampaign(campaignId: string) {
             // Unique Code: CMP-{ ShortUUID }
             const code = `CMP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-            const giftCard = await prisma.giftCard.create({
+            const giftCard = await db.giftCard.create({
                 data: {
                     code: code,
                     type: campaign.giftPercentage ? "PERCENTAGE" : "FIXED_AMOUNT",
@@ -281,7 +281,7 @@ export async function runCampaign(campaignId: string) {
             });
 
             // LOG IT
-            await prisma.campaignLog.create({
+            await db.campaignLog.create({
                 data: {
                     campaignId: campaign.id,
                     customerId: customer.id,

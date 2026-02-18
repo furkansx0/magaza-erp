@@ -1,13 +1,13 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 // Hard Delete Model (and all variants/stocks via Cascade)
 export async function deleteProductModel(modelId: string) {
     try {
         // 1. Check if any variant of this model has sales
-        const salesCount = await prisma.saleItem.count({
+        const salesCount = await db.saleItem.count({
             where: {
                 variant: {
                     modelId: modelId
@@ -22,7 +22,7 @@ export async function deleteProductModel(modelId: string) {
             };
         }
 
-        await prisma.productModel.delete({
+        await db.productModel.delete({
             where: { id: modelId }
         });
         revalidatePath("/dashboard/products");
@@ -37,7 +37,7 @@ export async function deleteProductModel(modelId: string) {
 export async function deleteProductVariant(variantId: string) {
     try {
         // 1. Check for sales
-        const salesCount = await prisma.saleItem.count({
+        const salesCount = await db.saleItem.count({
             where: {
                 variantId: variantId
             }
@@ -50,7 +50,7 @@ export async function deleteProductVariant(variantId: string) {
             };
         }
 
-        await prisma.productVariant.delete({
+        await db.productVariant.delete({
             where: { id: variantId }
         });
         revalidatePath("/dashboard/products");
@@ -65,7 +65,7 @@ export async function deleteProductVariant(variantId: string) {
 export async function deleteProductColorGroup(modelId: string, color: string) {
     try {
         // 1. Check for sales in this color group
-        const salesCount = await prisma.saleItem.count({
+        const salesCount = await db.saleItem.count({
             where: {
                 variant: {
                     modelId: modelId,
@@ -85,7 +85,7 @@ export async function deleteProductColorGroup(modelId: string, color: string) {
            Prisma doesn't support deleteMany with complex relations easily in one go if we wanted to be super specific,
            but here we can just delete variants matching modelId and color.
         */
-        const result = await prisma.productVariant.deleteMany({
+        const result = await db.productVariant.deleteMany({
             where: {
                 modelId: modelId,
                 color: {

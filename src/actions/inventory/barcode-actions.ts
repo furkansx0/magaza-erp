@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 
 /**
  * Generates N sequential barcodes starting using a robust SystemCounter.
@@ -14,7 +14,7 @@ export async function generateNextBarcodes(count: number = 1) {
         const generatedBarcodes: string[] = []
 
         // We use a transaction to ensure we reserve the range or update the counter safely-ish.
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             // 1. Get Current Counter
             let counter = await tx.systemCounter.findUnique({ where: { key: "barcode_seq" } });
 

@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { hash } from "bcryptjs"
@@ -16,7 +16,7 @@ export async function createUser(data: z.infer<typeof userSchema>) {
         const validData = userSchema.parse(data)
 
         // Check duplication
-        const existing = await prisma.user.findUnique({
+        const existing = await db.user.findUnique({
             where: { username: validData.username }
         })
 
@@ -24,7 +24,7 @@ export async function createUser(data: z.infer<typeof userSchema>) {
             return { success: false, error: "Bu kullanıcı adı zaten kullanılıyor" }
         }
 
-        await prisma.user.create({
+        await db.user.create({
             data: {
                 username: validData.username,
                 name: validData.name,
@@ -44,7 +44,7 @@ export async function createUser(data: z.infer<typeof userSchema>) {
 export async function createAdminUser(data: { name: string, username: string, password: string }) {
     try {
         // Check duplication
-        const existing = await prisma.user.findUnique({
+        const existing = await db.user.findUnique({
             where: { username: data.username }
         })
 
@@ -54,7 +54,7 @@ export async function createAdminUser(data: { name: string, username: string, pa
 
         const hashedPassword = await hash(data.password, 10)
 
-        await prisma.user.create({
+        await db.user.create({
             data: {
                 username: data.username,
                 name: data.name,
@@ -74,7 +74,7 @@ export async function createAdminUser(data: { name: string, username: string, pa
 export async function createSystemUser(data: { name: string, username: string, password: string, permissions: string[] }) {
     try {
         // Check duplication
-        const existing = await prisma.user.findUnique({
+        const existing = await db.user.findUnique({
             where: { username: data.username }
         })
 
@@ -84,7 +84,7 @@ export async function createSystemUser(data: { name: string, username: string, p
 
         const hashedPassword = await hash(data.password, 10)
 
-        await prisma.user.create({
+        await db.user.create({
             data: {
                 username: data.username,
                 name: data.name,
@@ -104,7 +104,7 @@ export async function createSystemUser(data: { name: string, username: string, p
 
 export async function deleteUser(id: string) {
     try {
-        await prisma.user.delete({ where: { id } })
+        await db.user.delete({ where: { id } })
         revalidatePath("/dashboard/users")
         revalidatePath("/dashboard/pos")
         return { success: true }

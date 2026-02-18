@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, subMonths } from "date-fns"
 
 export type DateRangeType = "today" | "yesterday" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "last6Months" | "custom";
@@ -51,7 +51,7 @@ export async function getStoreDashboardStats(storeId: string) {
     const end = endOfDay(today);
 
     // 1. Fetch Today's Data (Full fetch for in-memory aggregation)
-    const todaySalesData = await prisma.sale.findMany({
+    const todaySalesData = await db.sale.findMany({
         where: {
             storeId,
             createdAt: { gte: start, lte: end }
@@ -67,7 +67,7 @@ export async function getStoreDashboardStats(storeId: string) {
         }
     });
 
-    const todayExpenses = await prisma.storeExpense.aggregate({
+    const todayExpenses = await db.storeExpense.aggregate({
         where: {
             storeId,
             createdAt: { gte: start, lte: end }
@@ -142,7 +142,7 @@ export async function getStoreActivityReport(
 ) {
     const { start, end } = getDateRange(dateParams);
 
-    const sales = await prisma.sale.findMany({
+    const sales = await db.sale.findMany({
         where: {
             storeId,
             createdAt: { gte: start, lte: end }
@@ -218,7 +218,7 @@ export async function getStoreFinanceReport(storeId: string, dateParams: DateRan
     const { start, end } = getDateRange(dateParams);
 
     // 1. Payments Breakdown
-    const payments = await prisma.salePayment.groupBy({
+    const payments = await db.salePayment.groupBy({
         by: ['method'],
         where: {
             sale: {
@@ -239,7 +239,7 @@ export async function getStoreFinanceReport(storeId: string, dateParams: DateRan
     });
 
     // 2. Expenses
-    const expenses = await prisma.storeExpense.findMany({
+    const expenses = await db.storeExpense.findMany({
         where: {
             storeId,
             createdAt: { gte: start, lte: end }
@@ -284,7 +284,7 @@ export async function getStoreStaffReport(storeId: string, dateParams: DateRange
     const { start, end } = getDateRange(dateParams);
 
     // Fetch sales with items and their specific sales reps
-    const sales = await prisma.sale.findMany({
+    const sales = await db.sale.findMany({
         where: {
             storeId,
             createdAt: { gte: start, lte: end }
@@ -366,7 +366,7 @@ export async function getStoreStaffReport(storeId: string, dateParams: DateRange
 export async function getStaffSales(storeId: string, staffId: string, dateParams: DateRangeParams) {
     const { start, end } = getDateRange(dateParams);
 
-    const sales = await prisma.sale.findMany({
+    const sales = await db.sale.findMany({
         where: {
             storeId,
             createdAt: { gte: start, lte: end },

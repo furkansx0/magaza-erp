@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 // Reuse existing BulkPriceOperation if needed, but this is separate.
@@ -12,7 +12,7 @@ export async function bulkCreateTransfer(variantIds: string[], sourceStoreId: st
         if (sourceStoreId === targetStoreId) return { success: false, error: "Kaynak ve hedef aynı olamaz." };
 
         // 1. Find variants directly
-        const variants = await prisma.productVariant.findMany({
+        const variants = await db.productVariant.findMany({
             where: {
                 id: { in: variantIds },
                 isArchived: false
@@ -42,7 +42,7 @@ export async function bulkCreateTransfer(variantIds: string[], sourceStoreId: st
         const randomSuffix = Math.floor(1000 + Math.random() * 9000);
         const transferNo = `TRF-BULK-${dateStr}-${randomSuffix}`;
 
-        const transferId = await prisma.$transaction(async (tx) => {
+        const transferId = await db.$transaction(async (tx) => {
             // A. Create Transfer Record (Completed)
             const transfer = await tx.stockTransfer.create({
                 data: {

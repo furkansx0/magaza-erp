@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
 export async function deleteAllProducts() {
@@ -16,19 +16,19 @@ export async function deleteAllProducts() {
         // Let's assume user knows what they are doing and we delete dependent stocks and sale items.
 
         // 1. Delete Stocks
-        await prisma.stock.deleteMany({})
+        await db.stock.deleteMany({})
 
         // 2. Delete Sale Items (This effectively breaks Sales if they have no items, but whatever)
         // Actually, deleting SaleItems is dangerous without deleting Sales.
         // Let's try to delete logic: 
         // If we delete products, we must delete SaleItems referencing them.
-        await prisma.saleItem.deleteMany({})
+        await db.saleItem.deleteMany({})
 
         // 3. Delete Variants
-        await prisma.productVariant.deleteMany({})
+        await db.productVariant.deleteMany({})
 
         // 4. Delete Models
-        await prisma.productModel.deleteMany({})
+        await db.productModel.deleteMany({})
 
         revalidatePath("/dashboard")
         return { success: true, message: "Tüm ürünler ve stoklar silindi." }
@@ -49,16 +49,16 @@ export async function deleteAllCustomers() {
 
         // Let's try force delete relations if possible or set null.
         // 1. Anonymize Sales (Keep financial data)
-        await prisma.sale.updateMany({
+        await db.sale.updateMany({
             data: { customerId: null }
         })
 
         // 2. Delete Dependent Logs & Cards (Must be deleted as they require a customer)
-        await prisma.campaignLog.deleteMany({})
-        await prisma.giftCard.deleteMany({})
+        await db.campaignLog.deleteMany({})
+        await db.giftCard.deleteMany({})
 
         // 3. Delete Customers
-        await prisma.customer.deleteMany({})
+        await db.customer.deleteMany({})
 
         revalidatePath("/dashboard")
         return { success: true, message: "Tüm müşteriler ve bağlı kayıtları (Loglar, Hediye Çekleri) silindi. Satışlar anonim hale getirildi." }
@@ -69,9 +69,9 @@ export async function deleteAllCustomers() {
 
 export async function deleteAllSales() {
     try {
-        await prisma.salePayment.deleteMany({})
-        await prisma.saleItem.deleteMany({})
-        await prisma.sale.deleteMany({})
+        await db.salePayment.deleteMany({})
+        await db.saleItem.deleteMany({})
+        await db.sale.deleteMany({})
 
         revalidatePath("/dashboard")
         return { success: true, message: "Tüm satış geçmişi silindi." }
@@ -82,7 +82,7 @@ export async function deleteAllSales() {
 
 export async function deleteAllGiftCards() {
     try {
-        await prisma.giftCard.deleteMany({})
+        await db.giftCard.deleteMany({})
         revalidatePath("/dashboard")
         return { success: true, message: "Tüm hediye çekleri silindi." }
     } catch (error: any) {

@@ -1,4 +1,4 @@
-﻿import { prisma } from "@/lib/db";
+﻿import { db } from "@/lib/db";
 import { ProductGrid } from "@/components/products/product-grid-view";
 import { ProductActions } from "@/components/products/product-actions";
 import { getProductsWithFilters, getFilterFacets } from "@/actions/inventory/product-query-actions";
@@ -47,7 +47,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         seasons: rawFacets.seasons.map(s => ({ value: s, count: 0, checked: false }))
     }
 
-    const stores = await prisma.store.findMany({
+    const stores = await db.store.findMany({
         select: { id: true, name: true }
     });
 

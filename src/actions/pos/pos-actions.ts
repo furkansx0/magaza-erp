@@ -1,6 +1,6 @@
 ﻿"use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createAuditLog } from "@/actions/settings/audit-actions";
@@ -27,7 +27,7 @@ export async function searchPosProducts(query: string, storeId?: string, include
     const session = await getSession();
     const effectiveStoreId = storeId || session?.storeId;
 
-    const variants = await prisma.productVariant.findMany({
+    const variants = await db.productVariant.findMany({
         where: {
             isArchived: false, // STRICTLY ENFORCE NO ARCHIVED
             OR: [
@@ -88,7 +88,7 @@ export async function searchPosProducts(query: string, storeId?: string, include
 
 export async function getCustomerByPhone(phone: string) {
     if (!phone) return null;
-    return await prisma.customer.findUnique({
+    return await db.customer.findUnique({
         where: { phone },
         include: {
             giftCards: {
@@ -108,7 +108,7 @@ export async function getCustomerByPhone(phone: string) {
 
 export async function createDetailedCustomer(data: any) {
     try {
-        const customer = await prisma.customer.create({
+        const customer = await db.customer.create({
             data: {
                 name: data.name,
                 phone: data.phone || null,
@@ -141,7 +141,7 @@ export async function createDetailedCustomer(data: any) {
 
 export async function createQuickCustomer(name: string, phone: string) {
     try {
-        const customer = await prisma.customer.create({
+        const customer = await db.customer.create({
             data: {
                 name,
                 phone
@@ -194,13 +194,13 @@ export async function processSale(data: {
         if (data.storeId) {
             storeId = data.storeId;
         } else {
-            const cashier = await prisma.user.findUnique({
+            const cashier = await db.user.findUnique({
                 where: { id: data.staffId },
                 include: { store: true }
             });
 
             if (!cashier?.storeId) {
-                const defaultStore = await prisma.store.findFirst();
+                const defaultStore = await db.store.findFirst();
                 if (!defaultStore) return { success: false, error: "Sistemde mağaza tanımlı değil." };
                 storeId = defaultStore.id;
             } else {
@@ -208,7 +208,7 @@ export async function processSale(data: {
             }
         }
 
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await db.$transaction(async (tx) => {
             // A. Process Gift Card Deductions
             const giftCardMap = new Map<string, string>();
 

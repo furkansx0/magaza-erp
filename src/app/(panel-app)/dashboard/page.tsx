@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Users, Package, CreditCard } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -6,16 +6,16 @@ import { tr } from "date-fns/locale";
 import { RecentSales } from "@/components/dashboard/recent-sales";
 
 export default async function DashboardPage() {
-    const totalStores = await prisma.store.count();
+    const totalStores = await db.store.count();
 
     // Count Models (Unique Products) vs Variants (SKUs)
-    const totalModels = await prisma.productModel.count();
-    const totalVariants = await prisma.productVariant.count();
+    const totalModels = await db.productModel.count();
+    const totalVariants = await db.productVariant.count();
 
     // --- Sales Stats ---
-    const totalSalesCount = await prisma.sale.count();
+    const totalSalesCount = await db.sale.count();
 
-    const totalRevenueAgg = await prisma.sale.aggregate({
+    const totalRevenueAgg = await db.sale.aggregate({
         _sum: { totalAmount: true }
     });
     const totalRevenue = totalRevenueAgg._sum.totalAmount || 0;
@@ -24,7 +24,7 @@ export default async function DashboardPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todaySalesCount = await prisma.sale.count({
+    const todaySalesCount = await db.sale.count({
         where: {
             createdAt: {
                 gte: today
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
         }
     });
 
-    const todayRevenueAgg = await prisma.sale.aggregate({
+    const todayRevenueAgg = await db.sale.aggregate({
         where: {
             createdAt: {
                 gte: today
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
     const todayRevenue = todayRevenueAgg._sum.totalAmount || 0;
 
     // Recent Sales
-    const recentSales = await prisma.sale.findMany({
+    const recentSales = await db.sale.findMany({
         take: 10, // Increased to 10
         orderBy: { createdAt: 'desc' },
         include: {
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
         }
     });
 
-    const stockAggregate = await prisma.stock.aggregate({
+    const stockAggregate = await db.stock.aggregate({
         _sum: { quantity: true }
     });
     const totalStockCount = stockAggregate._sum.quantity || 0;

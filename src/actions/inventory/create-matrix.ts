@@ -1,6 +1,6 @@
 ﻿"use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAuditLog } from "@/actions/settings/audit-actions";
@@ -40,7 +40,7 @@ export async function createProductMatrix(data: MatrixFormValues) {
     try {
         const validated = MatrixSchema.parse(data);
 
-        return await prisma.$transaction(async (tx) => {
+        return await db.$transaction(async (tx) => {
             let model;
 
             if (validated.existingModelId) {

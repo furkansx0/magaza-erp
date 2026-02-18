@@ -1,12 +1,12 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { hash } from "bcryptjs"
 
 export async function createStore(name: string, location: string, phone: string) {
     try {
-        const store = await prisma.store.create({
+        const store = await db.store.create({
             data: {
                 name,
                 location,
@@ -31,7 +31,7 @@ export async function updateStoreManager(data: {
 }) {
     try {
         // 1. Check if store exists
-        const store = await prisma.store.findUnique({
+        const store = await db.store.findUnique({
             where: { id: data.storeId },
             include: { manager: true }
         })
@@ -52,7 +52,7 @@ export async function updateStoreManager(data: {
         // 3. Upsert Manager User
         if (store.manager) {
             // Update existing manager
-            await prisma.user.update({
+            await db.user.update({
                 where: { id: store.manager.id },
                 data: {
                     ...userData,
@@ -63,7 +63,7 @@ export async function updateStoreManager(data: {
             // Create new manager
             if (!data.password) return { success: false, message: "Yeni müdür için şifre gereklidir." }
 
-            const newUser = await prisma.user.create({
+            const newUser = await db.user.create({
                 data: {
                     ...userData,
                     password: await hash(data.password, 10),
@@ -73,7 +73,7 @@ export async function updateStoreManager(data: {
             })
 
             // Link to Store
-            await prisma.store.update({
+            await db.store.update({
                 where: { id: data.storeId },
                 data: { managerId: newUser.id }
             })
@@ -97,7 +97,7 @@ export async function addStoreStaff(storeId: string, name: string) {
         const username = `${baseUsername}${randomSuffix}`
         const password = await hash("1234", 10) // Default password
 
-        await prisma.user.create({
+        await db.user.create({
             data: {
                 name,
                 username,
@@ -117,7 +117,7 @@ export async function addStoreStaff(storeId: string, name: string) {
 
 export async function updateStoreStaff(staffId: string, name: string) {
     try {
-        await prisma.user.update({
+        await db.user.update({
             where: { id: staffId },
             data: { name }
         })
@@ -134,7 +134,7 @@ export async function updateStoreStaff(staffId: string, name: string) {
 
 export async function removeStoreStaff(staffId: string) {
     try {
-        await prisma.user.update({
+        await db.user.update({
             where: { id: staffId },
             data: { isArchived: true }
         })
@@ -147,7 +147,7 @@ export async function removeStoreStaff(staffId: string) {
 
 export async function restoreStoreStaff(staffId: string) {
     try {
-        await prisma.user.update({
+        await db.user.update({
             where: { id: staffId },
             data: { isArchived: false }
         })
@@ -160,7 +160,7 @@ export async function restoreStoreStaff(staffId: string) {
 
 export async function deleteStore(storeId: string) {
     try {
-        await prisma.store.delete({
+        await db.store.delete({
             where: { id: storeId }
         })
         revalidatePath("/dashboard/stores")
@@ -171,13 +171,13 @@ export async function deleteStore(storeId: string) {
 }
 
 export async function getStoresForDeletion() {
-    return await prisma.store.findMany({
+    return await db.store.findMany({
         select: { id: true, name: true }
     })
 }
 
 export async function getStoreStats(storeId: string) {
-    const store = await prisma.store.findUnique({
+    const store = await db.store.findUnique({
         where: { id: storeId },
         include: {
             users: {
@@ -227,7 +227,7 @@ export async function getStoreStats(storeId: string) {
 
 export async function getStores() {
     try {
-        const stores = await prisma.store.findMany({
+        const stores = await db.store.findMany({
             orderBy: {
                 createdAt: 'desc',
             },

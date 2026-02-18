@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
 
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { getSettingByKey } from "@/actions/settings/settings-actions";
 
 export default async function DashboardLayout({
@@ -16,7 +16,7 @@ export default async function DashboardLayout({
     let storeName = "Yönetim Paneli";
 
     if (session?.storeId) {
-        const store = await prisma.store.findUnique({
+        const store = await db.store.findUnique({
             where: { id: session.storeId },
             select: { name: true }
         });

@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ export async function updateProductModel(data: z.infer<typeof UpdateModelSchema>
     try {
         const validated = UpdateModelSchema.parse(data);
 
-        await prisma.productModel.update({
+        await db.productModel.update({
             where: { id: validated.id },
             data: {
                 name: validated.name,

@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { generateNextBarcodes } from "./barcode-actions";
 
@@ -75,7 +75,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
 
         // 2. Process Each Model Group
         // Increase timeout for large batches
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             for (const [key, groupRows] of modelGroups) {
                 const firstRow = groupRows[0];
 

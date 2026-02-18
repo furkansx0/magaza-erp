@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 
 export async function createAuditLog(data: {
@@ -18,7 +18,7 @@ export async function createAuditLog(data: {
         }
 
         console.log("Attempting to write audit log:", data.action, data.entity);
-        await prisma.auditLog.create({
+        await db.auditLog.create({
             data: {
                 userId: session.userId,
                 action: data.action,
@@ -40,7 +40,7 @@ export async function getAuditLogs(entity?: string, entityId?: string, limit = 5
         if (entity) whereClause.entity = entity;
         if (entityId) whereClause.entityId = entityId;
 
-        return await prisma.auditLog.findMany({
+        return await db.auditLog.findMany({
             where: whereClause,
             include: {
                 user: {

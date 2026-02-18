@@ -1,4 +1,4 @@
-﻿import { prisma } from "@/lib/db"
+﻿import { db } from "@/lib/db"
 import { PosClient } from "@/components/pos/pos-client"
 import { getSession } from "@/lib/auth"
 import { getProductCampaigns } from "@/actions/crm/campaign-product-actions"
@@ -7,14 +7,14 @@ export default async function DashboardPosPage() {
     const session = await getSession();
 
     // Fetch all cashiers for potential selection
-    const staffList = await prisma.user.findMany({
+    const staffList = await db.user.findMany({
         // @ts-ignore
         where: { role: "CASHIER", isArchived: false },
         select: { id: true, username: true, name: true, storeId: true }
     });
 
     // Fetch stores for Admin selector
-    const stores = await prisma.store.findMany({
+    const stores = await db.store.findMany({
         select: { id: true, name: true }
     });
 

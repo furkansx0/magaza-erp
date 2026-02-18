@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
 /**
@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache"
 export async function getSettings(group?: string) {
     try {
         const where = group ? { group } : {};
-        const settings = await prisma.systemSetting.findMany({
+        const settings = await db.systemSetting.findMany({
             where,
             orderBy: { key: 'asc' }
         });
@@ -26,7 +26,7 @@ export async function getSettings(group?: string) {
  */
 export async function getSettingByKey(key: string) {
     try {
-        const setting = await prisma.systemSetting.findUnique({
+        const setting = await db.systemSetting.findUnique({
             where: { key }
         });
         return setting ? setting.value : null;
@@ -40,7 +40,7 @@ export async function getSettingByKey(key: string) {
  */
 export async function updateSetting(key: string, value: any, description?: string, group: string = 'GENERAL') {
     try {
-        await prisma.systemSetting.upsert({
+        await db.systemSetting.upsert({
             where: { key },
             create: {
                 key,
@@ -94,9 +94,9 @@ export async function initDefaultSettings() {
 
     let count = 0;
     for (const def of defaults) {
-        const existing = await prisma.systemSetting.findUnique({ where: { key: def.key } });
+        const existing = await db.systemSetting.findUnique({ where: { key: def.key } });
         if (!existing) {
-            await prisma.systemSetting.create({
+            await db.systemSetting.create({
                 data: {
                     key: def.key,
                     group: def.group,

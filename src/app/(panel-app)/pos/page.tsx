@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { PosClient } from "@/components/pos/pos-client"
 
 import { getSession } from "@/lib/auth"
@@ -12,7 +12,7 @@ export default async function PosPage() {
     // If admin, show all? Or maybe just Admin users? 
     // For now, let's filter by storeId if present.
 
-    let staffList = await prisma.user.findMany({
+    let staffList = await db.user.findMany({
         where: {
             ...(userStoreId ? { storeId: userStoreId } : {})
         },
@@ -26,7 +26,7 @@ export default async function PosPage() {
     // Fetch Store Name
     let storeName = "Tüm Mağazalar (Admin)";
     if (userStoreId) {
-        const store = await prisma.store.findUnique({
+        const store = await db.store.findUnique({
             where: { id: userStoreId },
             select: { name: true }
         });

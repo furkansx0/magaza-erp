@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
 
 // --- Create Gift Card ---
@@ -11,7 +11,7 @@ export async function createGiftCard(data: {
     daysValid: number;
 }) {
     try {
-        const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
+        const customer = await db.customer.findUnique({ where: { id: data.customerId } });
         if (!customer) return { success: false, error: "Müşteri bulunamadı." };
 
         // Generate Human Readable 8-char Code (e.g. GC-X9A2)
@@ -21,7 +21,7 @@ export async function createGiftCard(data: {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + data.daysValid);
 
-        const giftCard = await prisma.giftCard.create({
+        const giftCard = await db.giftCard.create({
             data: {
                 code,
                 type: data.type,
@@ -48,14 +48,14 @@ export async function createGiftCard(data: {
 export async function cancelGiftCard(id: string) {
     try {
         // Check if card exists and is active
-        const card = await prisma.giftCard.findUnique({ where: { id } });
+        const card = await db.giftCard.findUnique({ where: { id } });
         if (!card) return { success: false, error: "Hediye çeki bulunamadı." };
 
         // We don't delete, just set isActive = false
         // But schema has isActive default true.
         // Let's ensure we can set it to false.
 
-        await prisma.giftCard.update({
+        await db.giftCard.update({
             where: { id },
             data: { isActive: false }
         });
@@ -74,7 +74,7 @@ export async function validateGiftCard(code: string, customerId: string) {
     if (!customerId) return { success: false, error: "Müşteri seçili değil." };
 
     try {
-        const card = await prisma.giftCard.findUnique({
+        const card = await db.giftCard.findUnique({
             where: { code },
             include: { customer: true }
         });
