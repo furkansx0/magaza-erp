@@ -1,0 +1,81 @@
+"use server"
+
+import { prisma } from "@/lib/db"
+import { revalidatePath } from "next/cache"
+import { hash } from "bcryptjs"
+
+interface UpdateStoreState {
+    success: boolean
+    message: string
+}
+
+export async function updateStore(prevState: UpdateStoreState, formData: FormData): Promise<UpdateStoreState> {
+    try {
+        const storeId = formData.get("storeId") as string
+        const name = formData.get("name") as string
+        const location = formData.get("location") as string
+        const username = formData.get("username") as string // This is actually email/username for login
+        const password = formData.get("password") as string
+
+        if (!storeId || !name || !username) {
+            return { success: false, message: "Mağaza adı ve kullanıcı adı (e-posta) zorunludur." }
+        }
+
+        // 1. Update Store Name and Location
+        await prisma.store.update({
+            where: { id: storeId },
+            data: { name, location }
+        })
+
+        // 2. Find and Update Associated User
+        const storeWithUsers = await prisma.store.findUnique({
+            where: { id: storeId },
+            include: { users: true }
+        })
+
+        if (!storeWithUsers) return { success: false, message: "Mağaza bulunamadı." }
+
+        // Find the "primary" user. In this context, it's likely the first one or we should just pick one to update.
+        // If no user exists, create one!
+        let targetUser = storeWithUsers.users[0]
+
+        if (password && password.trim().length > 0) {
+            const hashedPassword = await hash(password, 10)
+
+            if (targetUser) {
+                await prisma.user.update({
+                    where: { id: targetUser.id },
+                    data: {
+                        username: username, // Update username too
+                        password: hashedPassword
+                    }
+                })
+            } else {
+                // Create new user for this store
+                await prisma.user.create({
+                    data: {
+                        username: username,
+                        password: hashedPassword,
+                        name: name, // Use store name as default user name
+                        role: "CASHIER", // Default store role
+                        storeId: storeId
+                    }
+                })
+            }
+        } else if (targetUser && username !== targetUser.username) {
+            // Only update username if changed and no password provided
+            await prisma.user.update({
+                where: { id: targetUser.id },
+                data: { username: username }
+            })
+        }
+
+        revalidatePath("/dashboard/stores")
+        revalidatePath(`/dashboard/stores/${storeId}`)
+        return { success: true, message: "Mağaza ve giriş bilgileri güncellendi." }
+
+    } catch (error) {
+        console.error("Update store error:", error)
+        return { success: false, message: "Güncelleme sırasında bir hata oluştu." }
+    }
+}

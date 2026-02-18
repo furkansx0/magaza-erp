@@ -1,0 +1,544 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums removed for SQLite compatibility
+
+model SystemCounter {
+  key   String @id
+  value Int
+}
+
+model SystemSetting {
+  key         String   @id
+  value       Json
+  description String?
+  group       String   // 'GENERAL', 'INVENTORY', 'POS', 'SECURITY'
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemConfig {
+  id             Int      @id @default(1) // Singleton
+  isInstalled    Boolean  @default(false)
+  companyName    String?
+  appTitle       String?  @default("Retail ERP")
+  logoUrl        String?
+  licenseKey     String?
+  licenseStatus  String?  @default("ACTIVE") // ACTIVE, SUSPENDED, EXPIRED
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Store {
+  id        String   @id @default(uuid())
+  name      String
+  code      String?  // "IST-001"
+  location  String?
+  phone     String?
+  
+  type      String   @default("STORE") // "STORE", "WAREHOUSE", "VIRTUAL"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  stocks    Stock[]
+  sales     Sale[]
+  
+  transfersFrom StockTransfer[] @relation("SourceStore")
+  transfersTo   StockTransfer[] @relation("TargetStore")
+  stockMovements StockMovement[]
+  expenses       StoreExpense[]
+  cashClosings   CashRegisterClosing[]
+  
+  pickups        Sale[]   @relation("PickupStore")
+
+  managerId     String? @unique
+  manager       User?   @relation("StoreManager", fields: [managerId], references: [id])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // Hashed
+  name      String?
+  role      String   @default("CASHIER")
+  permissions String? // JSON
+
+  
+  storeId   String?
+  store     Store?   @relation(fields: [storeId], references: [id])
+  
+  // Explicit Manager Relation
+  managedStore Store? @relation("StoreManager")
+  
+  salesItems SaleItem[] @relation("ItemSalesRep")
+  
+  sales     Sale[]   // Sales made by this user
+  cashClosings CashRegisterClosing[]
+  auditLogs AuditLog[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  isArchived Boolean @default(false)
+}
+
+model ProductModel {
+  id            String   @id @default(uuid())
+  name          String   // "Polo Klasik Deri Bot"
+  brand         String?  // "Polo"
+  description   String?
+  
+  // Hiyerarşik Yapı (Sahibinden.com Mantığı)
+  // Katman 1: Gender (Erkek, Kadın, Çocuk) - Zaten var
+  gender        String?  
+  
+  modelCode     String? // New: Manual Model Code
+  // Katman 2: Category (Ayakkabı, Bot) - Zaten var
+  category      String? 
+  // Katman 3: SubCategory (Klasik, Spor, Günlük)
+  subCategory   String?
+
+  // Yeni: Sezon (2024 Yaz, 2025 Kış vb.)
+  season        String?
+  material      String?
+  style         String?
+  
+
+  // Katman 4: Özellikler (Dynamic Attributes)
+  // JSON String: {"material": "Deri", "season": "2024 Yaz", "lining": "Yün"}
+  attributes    String?  
+  
+  isArchived    Boolean  @default(false)
+
+  variants      ProductVariant[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  images        ProductImage[]
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  url       String
+  color     String   // "Siyah" - Links to Variant Group Color
+  
+  modelId   String
+  model     ProductModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([modelId, color])
+}
+
+model ProductVariant {
+  id            String   @id @default(uuid())
+  barcode       String   @unique
+  sku           String?  // Giyim kodu örn: GR10450-KIR-S
+  
+  color         String?  // "Kırmızı", "Lacivert"
+  size          String?  // "S", "M", "36", "42"
+  
+  purchasePrice Decimal  
+  salePrice     Decimal
+  secondPrice   Decimal? // İndirimli fiyat vs.
+  
+  isArchived    Boolean  @default(false)
+  
+  modelId       String
+  model         ProductModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  
+  stocks        Stock[]
+  saleItems     SaleItem[]
+  stockTransferItems StockTransferItem[]
+  stockMovements StockMovement[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Stock {
+  id        String   @id @default(uuid())
+  quantity  Int      @default(0)
+  
+  isArchived Boolean @default(false)
+  
+  // Link to specific variant (Red Small), not generic model
+  variantId String
+  variant   ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+
+  @@unique([variantId, storeId]) 
+}
+
+// THE LEDGER: Immutable history of every stock change
+model StockMovement {
+  id        String   @id @default(uuid())
+  
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  
+  quantity  Int      // +5 or -2
+  balanceAfter Int   // Snapshot of total stock after movement (for quick verification)
+  
+  type      String   // "SALE", "RETURN", "TRANSFER_OUT", "TRANSFER_IN", "ADJUSTMENT", "COUNT_CORRECTION"
+  reason    String?  // "Stolen", "Damaged", "Order #123"
+  
+  referenceId String? // SaleID, TransferID, etc.
+  
+  userId    String?  // Who did it?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([storeId, variantId])
+  @@index([createdAt])
+}
+
+
+
+
+// ... (Customer, User, Campaign models remain unchanged)
+// Assuming I don't need to repost them if they are between line 60-266.
+// Wait, I need to make sure I don't delete them. I will use safer chunking or just append the new models if possible.
+// But replace_file_content requires exact context.
+// Let me use a safer approach for the `Store` model specifically and `ProductModel`.
+
+// Let's retry with specific smaller chunks to avoid deleting the rest of the file.
+
+
+model Customer {
+  id        String   @id @default(uuid())
+  
+  // 1. Basic Info
+  name      String   // Ad Soyad / Firma Adı
+  phone     String?  @unique
+  email     String?
+  googleId  String?  @unique
+  avatar    String?
+  password  String?  // Hashed
+  verificationCode String? // For SMS/Claims
+  verificationExpires DateTime?
+  address   String?  // Şehir/İlçe dahil açık adres
+  city      String?
+  district  String?
+  
+  type      String   @default("INDIVIDUAL") // "INDIVIDUAL" (Bireysel) | "CORPORATE" (Kurumsal)
+  taxNo     String?  // Vergi / TC No
+  taxOffice String?
+  gender    String?  // "MALE", "FEMALE"
+  
+  // 2. Relationship & Contact Info
+  channel   String?  // "Instagram", "Mağaza", "Web", "Tavsiye"
+  notes     String?  // Görüşme notları, şikayetler
+  
+  // 3. Sales & Finance logic is derived from related models (Sales), 
+  // but we can keep aggregate fields if needed, or compute them.
+  // We'll calculate "Total Spent" and "Balance" dynamically for now to match normalized DB design.
+
+  // 4. Marketing
+  consentSMS    Boolean @default(false)
+  consentEmail  Boolean @default(false)
+  birthday      DateTime?
+  specialDate   DateTime? // Evlilik yıldönümü vb.
+  specialDateLabel String? // "Evlilik Yıldönümü"
+  
+  // 5. Corporate Extras
+  contactPerson String? // Yetkili Kişi Adı
+  title         String? // Ünvan
+  paymentTerms  String? // "30 Gün Vade", "Peşin"
+  
+  sales     Sale[]
+  giftCards GiftCard[]
+  campaignLogs CampaignLog[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  
+  // Triggers
+  triggerType String   // "DATE" (Special), "BIRTHDAY", "MANUAL"
+  triggerDate DateTime? // Specific date for DATE trigger
+  
+  // Filters
+  targetGender   String? // "MALE", "FEMALE", "ALL" - Matches Customer.gender
+  targetCity     String? 
+  targetDistrict String?
+  targetType     String? // "INDIVIDUAL", "CORPORATE"
+  
+  // Reward
+  giftAmount     Decimal?
+  giftPercentage Float?
+  validityDays   Int      @default(30)
+  
+  isActive       Boolean  @default(true)
+  
+  logs           CampaignLog[]
+  giftCards      GiftCard[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ProductCampaign {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  
+  isActive    Boolean  @default(true)
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  
+  // Stores where this is active (Empty or null means ALL stores)
+  storeIds    String[] 
+  
+  // Type: "BOGO" (Buy X Get Y), "PERCENTAGE_OFF_SECOND", "BUNDLE", "DISCOUNT"
+  type        String   
+  
+  // JSON Rules
+  // { 
+  //   "buyQuantity": 2, 
+  //   "getQuantity": 1, 
+  //   "discountPercent": 100, (100 = Free)
+  //   "applyTo": "CHEAPEST", ("CHEAPEST", "EXPENSIVE")
+  //   "target": { "type": "CATEGORY|BRAND|PRODUCT", "ids": ["uuid1", "uuid2"] } 
+  // }
+  rules       String   // JSON String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CampaignLog {
+  id         String   @id @default(uuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  
+  giftCardId String?
+  
+  createdAt  DateTime @default(now())
+}
+
+model Sale {
+  id            String        @id @default(uuid())
+  totalAmount   Decimal       
+  paymentMethod String?       @default("CASH") // Kept for backward compatibility or summary
+  
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  
+  cashierId     String?       // Optional for Online Sales
+  cashier       User?         @relation(fields: [cashierId], references: [id])
+  
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  
+  // E-commerce & Order Management
+  status        String        @default("COMPLETED") // "COMPLETED", "PENDING", "SHIPPED", "CANCELLED"
+  channel       String        @default("POS")       // "POS", "ONLINE"
+  paymentStatus String        @default("PAID")      // "PAID", "PENDING_PAYMENT"
+  shippingAddress String?     
+  pickupStoreId   String?       // For Click & Collect
+  pickupStore     Store?        @relation("PickupStore", fields: [pickupStoreId], references: [id])
+  
+  items         SaleItem[]
+  payments      SalePayment[] // New: Split payments
+  
+
+  
+  createdAt     DateTime      @default(now())
+}
+
+model SalePayment {
+  id        String   @id @default(uuid())
+  amount    Decimal
+  method    String   // CASH, CREDIT_CARD, GIFT_CARD
+  
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  
+  giftCardId String?
+  giftCard   GiftCard? @relation(fields: [giftCardId], references: [id])
+  
+  createdAt DateTime @default(now())
+}
+
+model GiftCard {
+  id               String   @id @default(uuid())
+  code             String   @unique
+  type             String   @default("FIXED_AMOUNT") // "FIXED_AMOUNT" or "PERCENTAGE"
+  initialAmount    Decimal? // Nullable if percentage-only? Keep it for Fixed.
+  remainingBalance Decimal? // Nullable if percentage? 
+  percentage       Float?   // e.g. 10.0 for 10%
+  
+  expiryDate       DateTime
+  isActive         Boolean  @default(true)
+  
+  customerId       String
+  customer         Customer @relation(fields: [customerId], references: [id])
+
+  campaignId       String?
+  campaign         Campaign? @relation(fields: [campaignId], references: [id])
+  
+  salePayments     SalePayment[]
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SaleItem {
+  id        String   @id @default(uuid())
+  quantity  Int
+  price     Decimal  
+  
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  
+  variantId String
+  variant   ProductVariant  @relation(fields: [variantId], references: [id])
+  
+  salesRepId String?
+  salesRep   User?   @relation("ItemSalesRep", fields: [salesRepId], references: [id])
+}
+
+model StockTransfer {
+  id          String   @id @default(uuid())
+  transferNo  String   @unique // e.g. TRF-2024001
+  
+  sourceStoreId String
+  sourceStore   Store    @relation("SourceStore", fields: [sourceStoreId], references: [id])
+  
+  targetStoreId String
+  targetStore   Store    @relation("TargetStore", fields: [targetStoreId], references: [id])
+  
+  status      String   @default("PENDING") // RECOMMENDED, PENDING, SENT, COMPLETED, CANCELLED
+  
+  items       StockTransferItem[]
+  
+  sentAt      DateTime?
+  receivedAt  DateTime? // When destination accepts
+  
+  note        String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model StockTransferItem {
+  id          String   @id @default(uuid())
+  transferId  String
+  transfer    StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  
+  quantitySent Int
+  quantityReceived Int? // Null until processed
+}
+
+model StoreExpense {
+  id          String   @id @default(uuid())
+  amount      Decimal
+  description String
+  
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  
+  createdAt   DateTime @default(now())
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  address   String?
+  email     String?
+
+  transactions SupplierTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SupplierTransaction {
+  id              String   @id @default(uuid())
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  type            Int      // 0 = DEBT (Borçlanma/Mal Alışı), 1 = PAYMENT (Ödeme/Borç Düşümü)
+  amount          Decimal
+  
+  transactionDate DateTime @default(now())
+  dueDate         DateTime? // Only for DEBT
+  
+  description     String?
+  documentNo      String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  isPaid          Boolean  @default(false)
+  paidAt          DateTime?
+
+  @@index([supplierId])
+  @@index([isPaid])
+}
+
+model CashRegisterClosing {
+  id              String   @id @default(uuid())
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id])
+  
+  cashierId       String
+  cashier         User     @relation(fields: [cashierId], references: [id])
+
+  countedCash     Decimal
+  cashDifference  Decimal? // Calculated difference from expected (optional for now)
+  note            String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt // In case edit is allowed
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  action    String   // "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT"
+  entity    String   // "Product", "Campaign", "User", "Stock"
+  entityId  String?  // Target ID
+  
+  details   String?  // JSON string for before/after or simple text
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([entity, entityId])
+}
