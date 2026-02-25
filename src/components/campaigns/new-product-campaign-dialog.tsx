@@ -1,35 +1,14 @@
 ﻿"use client"
 
 import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import { useProductCampaignForm } from "./hooks/useProductCampaignForm"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Plus, Calculator, Info, Check, Tag, ShoppingBag, Loader2 } from "lucide-react"
-import { createProductCampaign } from "@/actions/crm/campaign-product-actions"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-
-// Schema
-const formSchema = z.object({
-    name: z.string().min(2, "Kampanya adı en az 2 karakter olmalıdır"),
-
-    // Logic
-    buyQuantity: z.coerce.number().min(0, "En az 0 olabilir"),
-    getQuantity: z.coerce.number().min(1).optional(),
-    discountPercent: z.coerce.number().min(0).max(100),
-    applyTo: z.enum(["CHEAPEST", "EXPENSIVE"]).default("CHEAPEST"),
-
-    // Targeting - Split
-    targetCategoryIds: z.array(z.string()).default([]),
-    targetBrandIds: z.array(z.string()).default([]),
-
-    storeIds: z.array(z.string()).default([]),
-})
 
 interface NewProductCampaignDialogProps {
     uniqueCategories?: string[];
@@ -38,85 +17,7 @@ interface NewProductCampaignDialogProps {
 
 export function NewProductCampaignDialog({ uniqueCategories = [], uniqueBrands = [] }: NewProductCampaignDialogProps) {
     const [open, setOpen] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
-
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
-        defaultValues: {
-            name: "",
-            buyQuantity: 1,
-            getQuantity: 1,
-            discountPercent: 100, // Free
-            applyTo: "CHEAPEST",
-            targetCategoryIds: [],
-            targetBrandIds: [],
-            storeIds: []
-        },
-    })
-
-    const formValues = form.watch();
-
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        setIsLoading(true)
-        try {
-            const rules = {
-                buyQuantity: values.buyQuantity,
-                getQuantity: values.buyQuantity === 0 ? 999999 : values.getQuantity,
-                discountPercent: values.discountPercent,
-                applyTo: "CHEAPEST", // Force Cheapest
-                target: {
-                    categoryIds: values.targetCategoryIds,
-                    brandIds: values.targetBrandIds
-                }
-            };
-
-            // Backend Type inference
-            let type = "BOGO";
-            if (values.buyQuantity === 0) type = "DISCOUNT";
-            else if (values.buyQuantity === 1 && values.getQuantity === 1 && values.discountPercent === 100) type = "BOGO";
-
-            // @ts-ignore
-            const result = await createProductCampaign({
-                name: values.name,
-                description: "",
-                isActive: true,
-                startDate: new Date(),
-                storeIds: values.storeIds,
-                type: type,
-                rules: rules as any
-            });
-
-            if (result.success) {
-                toast.success("Kampanya oluşturuldu!");
-                setOpen(false)
-                form.reset()
-            } else {
-                toast.error(result.error)
-            }
-        } catch (error) {
-            toast.error("Bir hata oluştu")
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    const toggleCategory = (cat: string) => {
-        const current = form.getValues("targetCategoryIds");
-        if (current.includes(cat)) {
-            form.setValue("targetCategoryIds", current.filter(c => c !== cat));
-        } else {
-            form.setValue("targetCategoryIds", [...current, cat]);
-        }
-    }
-
-    const toggleBrand = (brand: string) => {
-        const current = form.getValues("targetBrandIds");
-        if (current.includes(brand)) {
-            form.setValue("targetBrandIds", current.filter(b => b !== brand));
-        } else {
-            form.setValue("targetBrandIds", [...current, brand]);
-        }
-    }
+    const { form, formValues, isLoading, onSubmit, toggleCategory, toggleBrand } = useProductCampaignForm(() => setOpen(false));
 
     // Dynamic Summary Generation
     const getCampaignSummary = () => {
@@ -199,7 +100,7 @@ export function NewProductCampaignDialog({ uniqueCategories = [], uniqueBrands =
 
                 <div className="flex-1 overflow-auto bg-gray-50/30 p-5">
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="h-full">
+                        <form onSubmit={form.handleSubmit(onSubmit as any)} className="h-full">
                             {/* USE GRID INSTEAD OF FLEX FOR RELIABLE COLUMNS */}
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-full min-h-[500px]">
 
@@ -359,7 +260,7 @@ export function NewProductCampaignDialog({ uniqueCategories = [], uniqueBrands =
 
                 <DialogFooter className="p-4 border-t bg-white shrink-0 z-10">
                     <Button variant="outline" onClick={() => setOpen(false)}>İptal</Button>
-                    <Button onClick={form.handleSubmit(onSubmit)} className="bg-indigo-600 hover:bg-indigo-700 px-6">
+                    <Button onClick={form.handleSubmit(onSubmit as any)} className="bg-indigo-600 hover:bg-indigo-700 px-6">
                         {isLoading ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Check className="w-4 h-4 mr-2" />}
                         Kaydet
                     </Button>

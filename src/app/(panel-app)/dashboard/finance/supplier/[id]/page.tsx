@@ -1,4 +1,4 @@
-import { getSupplier, getSupplierTransactionsRaw } from "@/app/actions/finance-actions"
+import { getSupplier, getSupplierTransactionsRaw } from "@/actions/finance/finance-actions"
 import { SupplierDetailView } from "@/components/finance/supplier-detail-view"
 import { AddTransactionDialog } from "@/components/finance/add-transaction-dialog"
 import { Button } from "@/components/ui/button"

@@ -29,7 +29,7 @@ export function StoreDeleteButton({ storeId, storeName, className, variant = "gh
         if (result.success) {
             toast.info("Mağaza silindi")
         } else {
-            toast.error(result.error)
+            toast.error(result.message)
         }
     }
 

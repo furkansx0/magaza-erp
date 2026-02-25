@@ -31,7 +31,7 @@ export default async function StoreDetailPage({ params }: PageProps) {
                 <div className="flex items-center gap-2">
                     <form action={async () => {
                         "use server"
-                        await import("@/app/actions/auth").then(m => m.logout())
+                        await import("@/actions/settings/auth").then(m => m.logout())
                     }}>
                         <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50">
                             Çıkış Yap

@@ -86,7 +86,8 @@ export function QuickTransferDialog({ open, onOpenChange, currentStoreId, allSto
                 modelName: product.modelName,
                 barcode: product.barcode,
                 quantity: 1, // Start with 1
-                currentStock: product.stock
+                currentStock: product.stock,
+                price: 0
             }, ...prev]
         })
     }

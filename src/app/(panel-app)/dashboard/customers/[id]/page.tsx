@@ -2,7 +2,7 @@ import { db } from "@/lib/db"
 import { notFound } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GiftCardList } from "@/components/customers/gift-card-list"
-import { EditCustomerDialog } from "@/components/customers/edit-customer-dialog"
+import { EditCustomerDialog } from "@/modules/customers/components/edit-customer-dialog"
 import { CustomerAnalytics, AnalyticsData } from "@/components/customers/customer-analytics"
 import { CustomerSalesHistory, SaleHistoryItem } from "@/components/customers/customer-sales-history"
 import { CustomerProductMatrix, MatrixData } from "@/components/customers/customer-product-matrix"
@@ -86,7 +86,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         storeName: sale.store.name,
         totalAmount: Number(sale.totalAmount),
         isReturn: Number(sale.totalAmount) < 0,
-        cashierName: sale.cashier.name || sale.cashier.username,
+        cashierName: sale.cashier?.name || sale.cashier?.username || "Bilinmiyor",
         paymentMethods: sale.payments.map(p => ({
             method: p.method,
             amount: Number(p.amount),

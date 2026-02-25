@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -10,203 +10,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { CalendarIcon, Plus, RefreshCw, Lock, Unlock, AlertTriangle } from "lucide-react"
-import { format, addMonths } from "date-fns"
+import { format } from "date-fns"
 import { tr } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { addTransactionBatch } from "@/actions/finance/finance-actions"
-import { toast } from "sonner"
 import { FormattedNumberInput } from "@/components/ui/formatted-number-input"
-
-interface PlanItem {
-    id: number
-    date: Date
-    amount: number
-    description: string
-    documentNo?: string
-}
+import { useTransactionForm } from "./hooks/useTransactionForm"
 
 export function AddTransactionDialog({ supplierId }: { supplierId: string }) {
     const [open, setOpen] = useState(false)
-    const [loading, setLoading] = useState(false)
-    const [mainTab, setMainTab] = useState("purchase") // purchase | payment
-
-    // Common Inputs
-    const [totalAmount, setTotalAmount] = useState("")
-    const [description, setDescription] = useState("")
-    const [date, setDate] = useState<Date>(new Date())
-
-    // Purchase Specific
-    const [purchaseType, setPurchaseType] = useState("credit") // cash | credit
-    const [installmentCount, setInstallmentCount] = useState("1")
-    const [firstDueDate, setFirstDueDate] = useState<Date>(new Date())
-    const [downPayment, setDownPayment] = useState("") // Peşinat
-
-    // Payment Specific
-    const [paymentType, setPaymentType] = useState("cash") // cash | check
-    const [checkCount, setCheckCount] = useState("1")
-    const [checkStartMonth, setCheckStartMonth] = useState<Date>(new Date())
-    const [checkDocumentStart, setCheckDocumentStart] = useState("")
-
-    // The Plan
-    const [plan, setPlan] = useState<PlanItem[]>([])
-    const [isManualMode, setIsManualMode] = useState(false)
-
-    // Effect to generate plan automatically
-    useEffect(() => {
-        if (!isManualMode) {
-            generatePlan()
-        }
-    }, [mainTab, totalAmount, purchaseType, installmentCount, firstDueDate, paymentType, checkCount, checkStartMonth, checkDocumentStart, description, isManualMode, downPayment])
-
-    const generatePlan = () => {
-        const amount = parseFloat(totalAmount)
-        const dp = parseFloat(downPayment) || 0
-
-        if (isNaN(amount) || amount <= 0) {
-            setPlan([])
-            return
-        }
-
-        const items: PlanItem[] = []
-
-        if (mainTab === "purchase") {
-            if (purchaseType === "cash") {
-                // Cash Purchase
-                items.push({
-                    id: 1,
-                    date: date,
-                    amount: amount,
-                    description: description || "Peşin Mal Alışı",
-                    documentNo: checkDocumentStart
-                })
-            } else {
-                // Credit (Vadeli)
-
-                // 1. Handle Down Payment (Peşinat) if exists
-                if (dp > 0) {
-                    items.push({
-                        id: 0,
-                        date: date, // Peşinat is due today (Invoice Date)
-                        amount: dp,
-                        description: `${description || "Vadeli Alış"} - Peşinat`,
-                        documentNo: checkDocumentStart
-                    })
-                }
-
-                // 2. Handle Installments from Remaining Amount
-                const remainingAmount = amount - dp
-
-                if (remainingAmount > 0) {
-                    const count = parseInt(installmentCount) || 1
-                    const perInstallment = remainingAmount / count
-
-                    for (let i = 0; i < count; i++) {
-                        const d = addMonths(firstDueDate, i)
-                        items.push({
-                            id: i + 1,
-                            date: d,
-                            amount: perInstallment,
-                            description: `${description || "Vadeli Alış"} - Taksit ${i + 1}/${count}`,
-                            documentNo: checkDocumentStart
-                        })
-                    }
-                }
-            }
-        } else {
-            // PAYMENT Logic
-            if (paymentType === "cash") {
-                items.push({
-                    id: 1,
-                    date: date,
-                    amount: amount,
-                    description: description || "Nakit Ödeme",
-                    documentNo: checkDocumentStart
-                })
-            } else {
-                // Check (Çek)
-                const count = parseInt(checkCount) || 1
-                const perCheck = amount / count
-
-                for (let i = 0; i < count; i++) {
-                    const d = addMonths(checkStartMonth, i)
-                    items.push({
-                        id: i + 1,
-                        date: d,
-                        amount: perCheck,
-                        description: `${description || "Çek Ödemesi"} - ${i + 1}/${count}`,
-                        documentNo: checkDocumentStart ? String(parseInt(checkDocumentStart) + i) : ""
-                    })
-                }
-            }
-        }
-        setPlan(items)
-    }
-
-    const handlePlanChange = (index: number, field: keyof PlanItem, value: any) => {
-        if (!isManualMode) return
-
-        const newPlan = [...plan]
-        newPlan[index] = { ...newPlan[index], [field]: value }
-        setPlan(newPlan)
-    }
-
-    const toggleManualMode = () => {
-        if (isManualMode) {
-            setIsManualMode(false)
-        } else {
-            setIsManualMode(true)
-        }
-    }
-
-    const planSum = plan.reduce((acc, item) => acc + (item.amount || 0), 0)
-    const targetAmount = parseFloat(totalAmount) || 0
-    const difference = targetAmount - planSum
-    const isBalanced = Math.abs(difference) < 0.01
-
-    const handleSubmit = async () => {
-        if (plan.length === 0) return
-
-        if (isManualMode && !isBalanced) {
-            toast.error(`Plan toplamı (${planSum.toFixed(2)}) ile ana tutar (${targetAmount.toFixed(2)}) eşleşmiyor!`)
-            return
-        }
-
-        setLoading(true)
-
-        const transactionsToSave = []
-
-        // Generic Save Logic:
-        // Purchase Tab -> All items are Debts (Type 0)
-        // Payment Tab -> All items are Payments (Type 1)
-
-        const type = mainTab === "purchase" ? 0 : 1;
-
-        plan.forEach(p => {
-            transactionsToSave.push({
-                type: type,
-                amount: p.amount,
-                description: p.description,
-                date: date, // Transaction Date
-                dueDate: p.date, // Due Date
-                documentNo: p.documentNo
-            })
-        })
-
-        const res = await addTransactionBatch({ supplierId, transactions: transactionsToSave })
-
-        setLoading(false)
-
-        if (res.success) {
-            toast.success(res.message)
-            setOpen(false)
-            setTotalAmount("")
-            setDescription("")
-            setDownPayment("")
-            setIsManualMode(false)
-        } else {
-            toast.error(res.message)
-        }
-    }
+    const {
+        loading, mainTab, setMainTab, totalAmount, setTotalAmount, description, setDescription,
+        date, setDate, purchaseType, setPurchaseType, installmentCount, setInstallmentCount,
+        firstDueDate, setFirstDueDate, downPayment, setDownPayment, paymentType, setPaymentType,
+        checkCount, setCheckCount, checkStartMonth, setCheckStartMonth, checkDocumentStart, setCheckDocumentStart,
+        plan, isManualMode, planSum, targetAmount, difference, isBalanced,
+        handlePlanChange, toggleManualMode, handleSubmit, resetForm
+    } = useTransactionForm(supplierId, () => setOpen(false));
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>

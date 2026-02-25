@@ -219,7 +219,7 @@ export async function seedSales(count: number, storeIdOverride: string = "mixed"
 
                 if (selectedMethod === "GIFT_CARD") {
                     // Create a dummy gift card for this transaction to be valid
-                    const code = "GIFT" + crypto.randomBytes(3).toString("hex").toUpperCase();
+                    const code = "GIFT" + Math.random().toString(36).substring(2, 8).toUpperCase();
                     const gc = await tx.giftCard.create({
                         data: {
                             code: code,

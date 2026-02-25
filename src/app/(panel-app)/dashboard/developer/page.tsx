@@ -36,12 +36,12 @@ export default function DeveloperPage() {
         try {
             // Need store IDs for products
             const storesRes = await getStores();
-            if (!storesRes.success || !storesRes.stores || storesRes.stores.length === 0) {
+            if (!storesRes || storesRes.length === 0) {
                 toast.error("Önce en az bir mağaza oluşturmalısınız.");
                 setLoading(null);
                 return;
             }
-            const storeIds = storesRes.stores.map(s => s.id);
+            const storeIds = storesRes.map((s: any) => s.id);
 
             // Batch process
             const total = 5000;

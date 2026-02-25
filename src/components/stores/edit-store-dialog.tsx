@@ -39,7 +39,6 @@ import { AddStaffDialog } from "@/components/stores/add-staff-dialog"
 import { RemoveStaffButton } from "@/components/stores/remove-staff-button"
 import { RestoreStaffButton } from "@/components/stores/restore-staff-button"
 import { EditStaffDialog } from "@/components/stores/edit-staff-dialog"
-import { UseUser } from "lucide-react"
 import {
     Collapsible,
     CollapsibleContent,
@@ -53,10 +52,6 @@ interface EditStoreDialogProps {
         name: string
         location: string | null
         users: {
-            id: string
-            name: string | null
-            username: string
-            role: string
             id: string
             name: string | null
             username: string

@@ -101,7 +101,7 @@ export function StockQueryDialog({ open, onOpenChange }: StockQueryDialogProps) 
                                     </div>
                                     <div className="text-right shrink-0">
                                         <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Number(product.salePrice))}
+                                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Number((product as any).salePrice || (product as any).price || 0))}
                                         </div>
                                     </div>
                                 </div>

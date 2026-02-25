@@ -2,18 +2,9 @@
 
 import * as React from "react"
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns"
-import { Calendar as CalendarIcon, Check } from "lucide-react"
 import { DateRange } from "react-day-picker"
-import { tr } from "date-fns/locale"
-
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
+import { ErpDateRangePicker } from "@/components/ui/erp-date-range-picker"
 import { DateRangeType } from "@/actions/settings/store-reporting-actions"
 
 interface DateRangePickerProps {
@@ -70,74 +61,22 @@ export function DateRangePicker({ dateRange, onDateRangeChange, className }: Dat
                 customStart: newDate.from,
                 customEnd: newDate.to
             })
+        } else {
+            // cleared
+            onDateRangeChange({
+                range: "today",
+                customStart: undefined,
+                customEnd: undefined
+            })
         }
     }
 
     return (
-        <div className={cn("grid gap-2", className)}>
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                    <Button
-                        id="date"
-                        variant={"outline"}
-                        className={cn(
-                            "w-[260px] justify-start text-left font-normal bg-white shadow-sm hover:bg-gray-50",
-                            !date && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                        {date?.from ? (
-                            date.to ? (
-                                <>
-                                    {format(date.from, "d MMM y", { locale: tr })} -{" "}
-                                    {format(date.to, "d MMM y", { locale: tr })}
-                                </>
-                            ) : (
-                                format(date.from, "d MMM y", { locale: tr })
-                            )
-                        ) : (
-                            <span>Tarih Seçin</span>
-                        )}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                    <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x h-[400px] sm:h-auto">
-                        <div className="flex flex-col p-1 gap-1 min-w-[140px] overflow-y-auto">
-                            {presets.map((preset) => (
-                                <Button
-                                    key={preset.value}
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handlePresetSelect(preset)}
-                                    className={cn(
-                                        "justify-start font-normal h-8",
-                                        dateRange.range === preset.value && "bg-accent text-accent-foreground font-medium"
-                                    )}
-                                >
-                                    {dateRange.range === preset.value && <Check className="mr-2 h-3 w-3" />}
-                                    <span className={cn(dateRange.range === preset.value && "ml-0", dateRange.range !== preset.value && "ml-5")}>
-                                        {preset.label}
-                                    </span>
-                                </Button>
-                            ))}
-                            <div className="px-2 py-1 my-1 border-t text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-                                Özel
-                            </div>
-                        </div>
-                        <div className="p-2">
-                            <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={date?.from}
-                                selected={date}
-                                onSelect={handleCalendarSelect}
-                                numberOfMonths={2}
-                                locale={tr}
-                            />
-                        </div>
-                    </div>
-                </PopoverContent>
-            </Popover>
+        <div className={className}>
+            <ErpDateRangePicker
+                date={date}
+                onDateChange={handleCalendarSelect}
+            />
         </div>
     )
 }

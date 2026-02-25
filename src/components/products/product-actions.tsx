@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ProductWizard } from "./wizard/product-wizard"
+import { ProductWizard } from "@/modules/inventory/components/product-wizard"
 
 interface ProductActionsProps {
     stores: { id: string, name: string }[]

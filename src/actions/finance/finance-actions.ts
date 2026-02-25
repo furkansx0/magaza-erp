@@ -1,6 +1,6 @@
 ﻿"use server"
 
-import { prisma as db } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { createAuditLog } from "@/actions/settings/audit-actions"
 

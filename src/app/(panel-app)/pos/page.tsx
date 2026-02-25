@@ -40,5 +40,5 @@ export default async function PosPage() {
         ]
     }
 
-    return <PosClient staffList={staffList} storeName={storeName} />
+    return <PosClient staffList={staffList as any} storeName={storeName} campaigns={[]} />
 }

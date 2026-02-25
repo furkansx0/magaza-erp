@@ -1,0 +1,4 @@
+﻿next.config.ts(5,10): error TS1005: ':' expected.
+next.config.ts(5,18): error TS1005: ':' expected.
+next.config.ts(5,28): error TS1005: ',' expected.
+next.config.ts(6,1): error TS1005: '}' expected.

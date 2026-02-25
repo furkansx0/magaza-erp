@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma as db } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
 // --- CONSTANTS & DEFAULTS ---
@@ -58,7 +58,7 @@ export async function refreshAllRecommendations() {
                     const sold = salesMap.get(`${v.id}_${store.id}`) || 0;
                     velocity += sold;
                     const stock = v.stocks.find(s => s.storeId === store.id)?.quantity || 0;
-                    if (stock > 0) variantsHeld.push({ variantId: v.id, quantity: stock, size: v.size });
+                    if (stock > 0) variantsHeld.push({ variantId: v.id, quantity: stock, size: v.size || "" });
                 }
                 return { storeId: store.id, velocity, variantsHeld };
             });

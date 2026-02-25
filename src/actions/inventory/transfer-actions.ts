@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma as db } from "@/lib/db"
+import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { createAuditLog } from "@/actions/settings/audit-actions"
@@ -170,7 +170,7 @@ export async function transferStock(
         await createAuditLog({
             action: "TRANSFER_CREATE",
             entity: "StockTransfer",
-            entityId: null, // We missed capturing ID in this function structure easily without big refactor
+            entityId: undefined, // We missed capturing ID in this function structure easily without big refactor
             details: `Hızlı Transfer: ${sourceStoreId} -> ${targetStoreId} (${items.length} kalem)`
         });
 
@@ -315,7 +315,7 @@ export async function createTransferRequest(data: {
         await createAuditLog({
             action: "TRANSFER_CREATE",
             entity: "StockTransfer",
-            entityId: null,
+            entityId: undefined,
             details: `Transfer İsteği/İşlemi: ${data.sourceStoreId} -> ${data.targetStoreId} (${data.items.length} kalem)`
         });
 

@@ -40,7 +40,7 @@ export async function createProductMatrix(data: MatrixFormValues) {
     try {
         const validated = MatrixSchema.parse(data);
 
-        return await db.$transaction(async (tx) => {
+        const result = await db.$transaction(async (tx) => {
             let model;
 
             if (validated.existingModelId) {

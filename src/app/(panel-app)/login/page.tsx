@@ -55,7 +55,7 @@ export default function LoginPage() {
 
             if (result?.success) {
                 toast.success("Giriş başarılı, yönlendiriliyorsunuz...")
-                window.location.href = result.redirectUrl // Force hard reload/redirect to ensure middleware kicks in cleanly
+                window.location.href = result.redirectUrl || "/dashboard" // Force hard reload/redirect to ensure middleware kicks in cleanly
             } else {
                 toast.error(result?.message || "Giriş başarısız.")
             }

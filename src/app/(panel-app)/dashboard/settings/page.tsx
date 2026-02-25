@@ -17,7 +17,7 @@ export default async function SettingsPage() {
                         <span className="text-xs text-amber-600 font-medium">Dikkat: Buradaki değişiklikler tüm sistemi etkiler.</span>
                     </p>
                 </div>
-                <form action={initDefaultSettings}>
+                <form action={async () => { "use server"; await initDefaultSettings(); }}>
                     <Button variant="outline" type="submit"> Varsayılanları Yükle</Button>
                 </form>
             </div>

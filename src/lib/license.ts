@@ -1,4 +1,4 @@
-import { prisma as db } from "@/lib/db";
+import { db } from "@/lib/db";
 
 // This URL should be a raw JSON file hosted anywhere (GitHub Gist, Vercel, S3, etc.)
 // Format: { "valid_keys": ["KEY-1", "KEY-2"], "suspended_keys": ["KEY-OLD"] }

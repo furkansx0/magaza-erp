@@ -28,7 +28,7 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
             {/* Header */}
             <div className="text-center mb-4 border-b pb-2 border-black border-dashed">
                 <h1 className="text-sm font-bold mb-1">{sale.store.name}</h1>
-                <p className="mb-1">{sale.store.address || "Merkez Şube"}</p>
+                <p className="mb-1">{sale.store.location || "Merkez Şube"}</p>
                 <p>{sale.store.phone}</p>
             </div>
 
@@ -44,7 +44,7 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
                 </div>
                 <div className="flex justify-between">
                     <span>Kasiyer:</span>
-                    <span>{sale.cashier.name || sale.cashier.username}</span>
+                    <span>{sale.cashier?.name || sale.cashier?.username || "Bilinmiyor"}</span>
                 </div>
                 {sale.customer && (
                     <div className="flex justify-between border-t border-black border-dashed mt-1 pt-1">

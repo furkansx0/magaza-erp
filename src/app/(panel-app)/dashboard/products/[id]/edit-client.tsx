@@ -1,6 +1,6 @@
 "use client"
 
-import { ProductWizard } from "@/components/products/wizard/product-wizard"
+import { ProductWizard } from "@/modules/inventory/components/product-wizard"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 

@@ -1,9 +1,7 @@
 ﻿"use client"
 
 import * as React from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import { useCampaignForm } from "./hooks/useCampaignForm"
 import { toast } from "sonner"
 import { Plus, Loader2 } from "lucide-react"
 
@@ -12,79 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createCampaign } from "@/actions/crm/campaign-actions"
-
-const campaignSchema = z.object({
-    name: z.string().min(2, "Kampanya adı gereklidir"),
-    description: z.string().optional(),
-    triggerType: z.enum(["MANUAL", "BIRTHDAY", "DATE"]),
-    triggerDate: z.string().optional(),
-
-    // Filters
-    targetGender: z.string().optional(),
-    targetCity: z.string().optional(),
-    targetType: z.string().optional(),
-
-    // Reward
-    rewardType: z.enum(["FIXED", "PERCENTAGE"]),
-    giftAmount: z.string().optional(),
-    giftPercentage: z.string().optional(),
-    validityDays: z.string().default("30"),
-}).refine(data => {
-    if (data.triggerType === "DATE" && !data.triggerDate) return false;
-    return true;
-}, {
-    message: "Tarih seçimi zorunludur",
-    path: ["triggerDate"]
-}).refine(data => {
-    if (data.rewardType === "FIXED" && !data.giftAmount) return false;
-    if (data.rewardType === "PERCENTAGE" && !data.giftPercentage) return false;
-    return true;
-}, {
-    message: "Ödül miktarı girilmelidir",
-    path: ["rewardType"]
-});
+import { useState } from "react"
 
 export function NewCampaignDialog() {
-    const [open, setOpen] = React.useState(false)
-    const [loading, setLoading] = React.useState(false)
-
-    const form = useForm<z.infer<typeof campaignSchema>>({
-        resolver: zodResolver(campaignSchema),
-        defaultValues: {
-            name: "",
-            description: "",
-            triggerType: "MANUAL",
-            targetGender: "ALL",
-            targetType: "ALL",
-            targetCity: "",
-            rewardType: "FIXED",
-            validityDays: "30",
-            giftAmount: "",
-            giftPercentage: "",
-        }
-    })
-
-    const onSubmit = async (values: z.infer<typeof campaignSchema>) => {
-        setLoading(true)
-        try {
-            const res = await createCampaign(values)
-            if (res.success) {
-                toast.success("Kampanya oluşturuldu")
-                setOpen(false)
-                form.reset()
-            } else {
-                toast.error(res.error)
-            }
-        } catch (error) {
-            toast.error("Hata oluştu")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const triggerType = form.watch("triggerType");
-    const rewardType = form.watch("rewardType");
+    const [open, setOpen] = useState(false)
+    const { form, loading, triggerType, rewardType, onSubmit } = useCampaignForm(() => setOpen(false));
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -99,7 +29,7 @@ export function NewCampaignDialog() {
                 </DialogHeader>
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={onSubmit} className="space-y-4">
 
                         <FormField
                             control={form.control}
