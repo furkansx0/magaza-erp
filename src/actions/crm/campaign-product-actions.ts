@@ -26,7 +26,7 @@ export type ProductCampaignFormValues = {
     endDate?: Date;
     storeIds: string[];
     type: string;
-    rules: string; // JSON string from DTO layer
+    rules: ProductCampaignRule;
 }
 
 export async function getProductCampaigns(storeId?: string) {

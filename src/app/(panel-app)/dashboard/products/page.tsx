@@ -1,5 +1,5 @@
 ﻿import { db } from "@/lib/db";
-import { ProductGrid } from "@/modules/inventory/components/product-grid-view";
+import { ProductGrid } from "@/components/products/product-grid-view";
 import { ProductActions } from "@/components/products/product-actions";
 import { getProductsWithFilters, getFilterFacets } from "@/actions/inventory/product-query-actions";
 

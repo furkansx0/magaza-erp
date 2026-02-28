@@ -19,6 +19,7 @@ interface QuickTransferDialogProps {
 }
 
 export function QuickTransferDialog({ open, onOpenChange, currentStoreId, allStores, currentStaffId }: QuickTransferDialogProps) {
+    // === STATE ===
     // Mode: SCANNING or CONFIRMING
     const [mode, setMode] = React.useState<'SCANNING' | 'CONFIRMING'>('SCANNING');
 
@@ -33,6 +34,8 @@ export function QuickTransferDialog({ open, onOpenChange, currentStoreId, allSto
     const [firstSelection, setFirstSelection] = React.useState<string | null>(null)
 
     const inputRef = React.useRef<HTMLInputElement>(null)
+
+    // === HANDLERS ===
 
     // Reset when closed
     React.useEffect(() => {
@@ -153,6 +156,104 @@ export function QuickTransferDialog({ open, onOpenChange, currentStoreId, allSto
         }
     }
 
+    // === RENDER HELPERS ===
+
+    const renderScanningMode = () => (
+        <div className="flex flex-col h-full animate-in slide-in-from-left-4 fade-in duration-300">
+            <div className="p-4 border-b bg-gray-50 dark:bg-gray-900">
+                <form onSubmit={handleBarcodeSubmit} className="relative">
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground ${searching ? 'animate-pulse text-blue-500' : ''}`} />
+                    <Input
+                        ref={inputRef}
+                        placeholder="Okutun veya Barkod Yazıp Enter'a basın..."
+                        value={barcode}
+                        onChange={e => setBarcode(e.target.value)}
+                        className="pl-10 h-12 text-lg"
+                        autoFocus
+                        disabled={transferring}
+                    />
+                </form>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 space-y-2 bg-gray-100/50 dark:bg-black/20">
+                {items.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-40">
+                        <Truck className="h-16 w-16 mb-4" />
+                        <p className="text-lg">Transfer edilecek ürünleri ekleyin</p>
+                    </div>
+                ) : (
+                    items.map((item) => (
+                        <div key={item.variantId} className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border flex justify-between items-center animate-in slide-in-from-bottom-2">
+                            <div>
+                                <div className="font-bold text-gray-800 dark:text-gray-100">{item.modelName}</div>
+                                <div className="text-xs text-muted-foreground font-mono">{item.barcode}</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg font-bold border border-blue-100">
+                                    x{item.quantity}
+                                </div>
+                                <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeItem(item.variantId)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            <div className="p-4 border-t bg-white dark:bg-gray-900">
+                <Button
+                    className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700 shadow-blue-200 shadow-lg transition-all"
+                    disabled={items.length === 0}
+                    onClick={() => setMode('CONFIRMING')}
+                >
+                    Transferi Başlat ({items.length} Ürün) <ArrowRight className="ml-2" />
+                </Button>
+            </div>
+        </div>
+    );
+
+    const renderConfirmingMode = () => (
+        <div className="flex flex-col h-full bg-white dark:bg-gray-900 animate-in slide-in-from-right-4 fade-in duration-300">
+            <div className="p-6 text-center border-b">
+                <h2 className={cn("text-2xl font-bold", validationStep === 2 ? "text-red-600 animate-pulse" : "text-gray-800")}>
+                    {validationStep === 1 ? "1. Adım: Hangi Mağazaya?" : "2. Adım: ONAY İÇİN TEKRAR SEÇİN"}
+                </h2>
+                <p className="text-muted-foreground mt-2">
+                    {validationStep === 1 ? "Lütfen hedef mağazayı seçiniz." : "Güvenlik gereği seçiminizi doğrulayın."}
+                </p>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 grid grid-cols-2 gap-4">
+                {allStores.filter(s => s.id !== currentStoreId).map(store => (
+                    <Button
+                        key={store.id}
+                        variant="outline"
+                        className={cn(
+                            "h-full min-h-[100px] text-xl font-bold flex flex-col items-center justify-center gap-2 border-2 hover:border-blue-500 hover:bg-blue-50 transition-all",
+                            transferring && "opacity-50 pointer-events-none"
+                        )}
+                        onClick={() => handleStoreSelect(store.id)}
+                    >
+                        <Truck className="h-8 w-8 opacity-50" />
+                        {store.name}
+                    </Button>
+                ))}
+            </div>
+
+            <div className="p-4 border-t">
+                <Button variant="secondary" className="w-full" onClick={() => {
+                    setMode('SCANNING');
+                    setValidationStep(1);
+                    setFirstSelection(null);
+                }}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Listeye Dön
+                </Button>
+            </div>
+        </div>
+    );
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] h-[70vh] flex flex-col p-0 overflow-hidden bg-white dark:bg-gray-900 border-none shadow-2xl">
@@ -168,102 +269,10 @@ export function QuickTransferDialog({ open, onOpenChange, currentStoreId, allSto
 
                 <div className="flex-1 overflow-hidden flex flex-col relative">
                     {/* MODE: SCANNING */}
-                    {mode === 'SCANNING' && (
-                        <div className="flex flex-col h-full animate-in slide-in-from-left-4 fade-in duration-300">
-                            <div className="p-4 border-b bg-gray-50 dark:bg-gray-900">
-                                <form onSubmit={handleBarcodeSubmit} className="relative">
-                                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground ${searching ? 'animate-pulse text-blue-500' : ''}`} />
-                                    <Input
-                                        ref={inputRef}
-                                        placeholder="Okutun veya Barkod Yazıp Enter'a basın..."
-                                        value={barcode}
-                                        onChange={e => setBarcode(e.target.value)}
-                                        className="pl-10 h-12 text-lg"
-                                        autoFocus
-                                        disabled={transferring}
-                                    />
-                                </form>
-                            </div>
-
-                            <div className="flex-1 overflow-auto p-4 space-y-2 bg-gray-100/50 dark:bg-black/20">
-                                {items.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-40">
-                                        <Truck className="h-16 w-16 mb-4" />
-                                        <p className="text-lg">Transfer edilecek ürünleri ekleyin</p>
-                                    </div>
-                                ) : (
-                                    items.map((item) => (
-                                        <div key={item.variantId} className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border flex justify-between items-center animate-in slide-in-from-bottom-2">
-                                            <div>
-                                                <div className="font-bold text-gray-800 dark:text-gray-100">{item.modelName}</div>
-                                                <div className="text-xs text-muted-foreground font-mono">{item.barcode}</div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg font-bold border border-blue-100">
-                                                    x{item.quantity}
-                                                </div>
-                                                <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeItem(item.variantId)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-
-                            <div className="p-4 border-t bg-white dark:bg-gray-900">
-                                <Button
-                                    className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700 shadow-blue-200 shadow-lg transition-all"
-                                    disabled={items.length === 0}
-                                    onClick={() => setMode('CONFIRMING')}
-                                >
-                                    Transferi Başlat ({items.length} Ürün) <ArrowRight className="ml-2" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                    {mode === 'SCANNING' && renderScanningMode()}
 
                     {/* MODE: CONFIRMING (Double Blind) */}
-                    {mode === 'CONFIRMING' && (
-                        <div className="flex flex-col h-full bg-white dark:bg-gray-900 animate-in slide-in-from-right-4 fade-in duration-300">
-                            <div className="p-6 text-center border-b">
-                                <h2 className={cn("text-2xl font-bold", validationStep === 2 ? "text-red-600 animate-pulse" : "text-gray-800")}>
-                                    {validationStep === 1 ? "1. Adım: Hangi Mağazaya?" : "2. Adım: ONAY İÇİN TEKRAR SEÇİN"}
-                                </h2>
-                                <p className="text-muted-foreground mt-2">
-                                    {validationStep === 1 ? "Lütfen hedef mağazayı seçiniz." : "Güvenlik gereği seçiminizi doğrulayın."}
-                                </p>
-                            </div>
-
-                            <div className="flex-1 overflow-auto p-4 grid grid-cols-2 gap-4">
-                                {allStores.filter(s => s.id !== currentStoreId).map(store => (
-                                    <Button
-                                        key={store.id}
-                                        variant="outline"
-                                        className={cn(
-                                            "h-full min-h-[100px] text-xl font-bold flex flex-col items-center justify-center gap-2 border-2 hover:border-blue-500 hover:bg-blue-50 transition-all",
-                                            transferring && "opacity-50 pointer-events-none"
-                                        )}
-                                        onClick={() => handleStoreSelect(store.id)}
-                                    >
-                                        <Truck className="h-8 w-8 opacity-50" />
-                                        {store.name}
-                                    </Button>
-                                ))}
-                            </div>
-
-                            <div className="p-4 border-t">
-                                <Button variant="secondary" className="w-full" onClick={() => {
-                                    setMode('SCANNING');
-                                    setValidationStep(1);
-                                    setFirstSelection(null);
-                                }}>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    Listeye Dön
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                    {mode === 'CONFIRMING' && renderConfirmingMode()}
                 </div>
             </DialogContent>
         </Dialog>

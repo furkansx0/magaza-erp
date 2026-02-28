@@ -6,7 +6,7 @@ import { tr } from "date-fns/locale"
 import { Calendar as CalendarIcon, Store as StoreIcon, TrendingUp, TrendingDown, DollarSign, ShoppingBag } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ErpDateRangePicker } from "@/components/ui/erp-date-range-picker"
+import { Calendar } from "@/components/ui/calendar"
 import {
     Popover,
     PopoverContent,
@@ -108,18 +108,49 @@ export default function ReportsPage() {
                     </Select>
 
                     {/* Date Picker */}
-                    <ErpDateRangePicker
-                        date={dateRange}
-                        onDateChange={(range) => {
-                            if (range?.from) setDateRange({ from: range.from, to: range.to || range.from })
-                        }}
-                        revenue={{
-                            amount: summary?.totalRevenue || 0,
-                            currency: "₺",
-                            growthPercentage: 0,
-                            isPositive: true
-                        }}
-                    />
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-[240px] justify-start text-left font-normal",
+                                    !dateRange && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (
+                                    dateRange.to ? (
+                                        <>
+                                            {format(dateRange.from, "d MMM", { locale: tr })} -{" "}
+                                            {format(dateRange.to, "d MMM", { locale: tr })}
+                                        </>
+                                    ) : (
+                                        format(dateRange.from, "PPP", { locale: tr })
+                                    )
+                                ) : (
+                                    <span>Tarih Seç</span>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                            <div className="p-2 border-b flex gap-2">
+                                <Button size="sm" variant="ghost" onClick={() => setPreset('today')}>Bugün</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setPreset('yesterday')}>Dün</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setPreset('week')}>Bu Hafta</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setPreset('month')}>Bu Ay</Button>
+                            </div>
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={(range: any) => {
+                                    if (range?.from) setDateRange({ from: range.from, to: range.to || range.from })
+                                }}
+                                numberOfMonths={2}
+                            />
+                        </PopoverContent>
+                    </Popover>
                 </div>
             </div>
 

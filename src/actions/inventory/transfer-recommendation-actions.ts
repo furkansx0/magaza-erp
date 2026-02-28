@@ -19,11 +19,9 @@ type StoreStat = {
     variantsHeld: { variantId: string; quantity: number; size: string }[]; // Elindeki stoklar
 }
 
-/**
- * --------------------------------------------------------
- * ANA FONKSİYON: TÜM SİSTEM İÇİN ÖNERİLERİ YENİLE (Dynamic SaaS Version)
- * --------------------------------------------------------
- */
+// ============================================================================
+// 1. MAIN ALGORITHM: REFRESH ALL SYSTEM RECOMMENDATIONS
+// ============================================================================
 export async function refreshAllRecommendations() {
     try {
         // 0. Ayarları Çek
@@ -207,7 +205,9 @@ export async function refreshAllRecommendations() {
     }
 }
 
-// --- YARDIMCI FONKSİYONLAR ---
+// ============================================================================
+// 2. INTERNAL UTILITIES / DATA FETCHERS
+// ============================================================================
 
 /**
  * Bedenleri sıralar (36 < 37 < 38 veya XS < S < M < L)
@@ -288,7 +288,9 @@ async function getSystemState() {
     return { stores, models, salesMap };
 }
 
-// --- ESKİ / MANUEL FONKSİYONLAR (GEREKLİ IMPORTLAR İÇİN KORUNDU) ---
+// ============================================================================
+// 3. LEGACY / MANUAL OPERATIONS (Maintained for backward compatibility)
+// ============================================================================
 
 export async function generateTransferRecommendations(sourceStoreId: string, targetStoreId: string) {
     if (!sourceStoreId || !targetStoreId || sourceStoreId === targetStoreId) {

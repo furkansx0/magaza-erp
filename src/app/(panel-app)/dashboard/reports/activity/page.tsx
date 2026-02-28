@@ -7,7 +7,7 @@ import * as XLSX from "xlsx"
 import { Calendar as CalendarIcon, Store as StoreIcon, Download, FileText, Search } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ErpDateRangePicker } from "@/components/ui/erp-date-range-picker"
+import { Calendar } from "@/components/ui/calendar"
 import {
     Popover,
     PopoverContent,
@@ -121,18 +121,44 @@ export default function ActivityReportPage() {
                     </Select>
 
                     {/* Date Picker */}
-                    <ErpDateRangePicker
-                        date={dateRange}
-                        onDateChange={(range) => {
-                            if (range?.from) setDateRange({ from: range.from, to: range.to || range.from })
-                        }}
-                        revenue={{
-                            amount: stats.total || 0,
-                            currency: "₺",
-                            growthPercentage: 0,
-                            isPositive: true
-                        }}
-                    />
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                size="sm"
+                                className={cn(
+                                    "w-[240px] justify-start text-left font-normal h-9",
+                                    !dateRange && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (
+                                    dateRange.to ? (
+                                        <>
+                                            {format(dateRange.from, "d MMM", { locale: tr })} -{" "}
+                                            {format(dateRange.to, "d MMM", { locale: tr })}
+                                        </>
+                                    ) : (
+                                        format(dateRange.from, "PPP", { locale: tr })
+                                    )
+                                ) : (
+                                    <span>Tarih Seç</span>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={(range: any) => {
+                                    if (range?.from) setDateRange({ from: range.from, to: range.to || range.from })
+                                }}
+                                numberOfMonths={2}
+                            />
+                        </PopoverContent>
+                    </Popover>
 
                     <Button variant="outline" size="sm" onClick={handleExport} className="h-9">
                         <Download className="mr-2 h-4 w-4" /> Excel

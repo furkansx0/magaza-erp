@@ -1,7 +1,9 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
-import { useEditCustomerForm } from "../hooks/useEditCustomerForm"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { toast } from "sonner"
 import { Loader2, Save, User, Building2, Pencil } from "lucide-react"
 
@@ -13,6 +15,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { updateCustomer } from "@/actions/crm/customer-actions"
+
+const customerSchema = z.object({
+    type: z.enum(["INDIVIDUAL", "CORPORATE"]),
+    name: z.string().min(2, "Ad Soyad / Ünvan gereklidir"),
+    phone: z.string().optional(),
+    email: z.string().email("Geçersiz e-posta").optional().or(z.literal("")),
+    gender: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    district: z.string().optional(),
+    taxNo: z.string().optional(),
+    taxOffice: z.string().optional(),
+    contactPerson: z.string().optional(),
+    title: z.string().optional(),
+    birthday: z.string().optional(),
+    specialDate: z.string().optional(),
+    specialDateLabel: z.string().optional(),
+    notes: z.string().optional(),
+    consentSMS: z.boolean().default(false),
+    consentEmail: z.boolean().default(false),
+})
 
 interface EditCustomerDialogProps {
     customer: any
@@ -20,7 +44,50 @@ interface EditCustomerDialogProps {
 
 export function EditCustomerDialog({ customer }: EditCustomerDialogProps) {
     const [open, setOpen] = React.useState(false)
-    const { form, loading, type, onSubmit } = useEditCustomerForm(customer, () => setOpen(false));
+    const [loading, setLoading] = React.useState(false)
+
+    const form = useForm<z.infer<typeof customerSchema>>({
+        resolver: zodResolver(customerSchema) as any,
+        defaultValues: {
+            type: customer.type || "INDIVIDUAL",
+            name: customer.name || "",
+            phone: customer.phone || "",
+            email: customer.email || "",
+            gender: customer.gender || undefined,
+            address: customer.address || "",
+            city: customer.city || "",
+            district: customer.district || "",
+            taxNo: customer.taxNo || "",
+            taxOffice: customer.taxOffice || "",
+            contactPerson: customer.contactPerson || "",
+            title: customer.title || "",
+            birthday: customer.birthday ? new Date(customer.birthday).toISOString().split('T')[0] : "",
+            specialDate: customer.specialDate ? new Date(customer.specialDate).toISOString().split('T')[0] : "",
+            specialDateLabel: customer.specialDateLabel || "Evlilik Yıldönümü",
+            notes: customer.notes || "",
+            consentSMS: customer.consentSMS || false,
+            consentEmail: customer.consentEmail || false,
+        }
+    })
+
+    const onSubmit = async (values: z.infer<typeof customerSchema>) => {
+        setLoading(true)
+        try {
+            const res = await updateCustomer(customer.id, values)
+            if (res.success) {
+                toast.success("Müşteri Bilgileri Güncellendi")
+                setOpen(false)
+            } else {
+                toast.error(res.error)
+            }
+        } catch (error) {
+            toast.error("Bir hata oluştu")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const type = form.watch("type")
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -36,7 +103,7 @@ export function EditCustomerDialog({ customer }: EditCustomerDialogProps) {
                 </DialogHeader>
 
                 <Form {...form}>
-                    <form onSubmit={onSubmit} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <Tabs defaultValue="basic" className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="basic">Genel Bilgiler</TabsTrigger>

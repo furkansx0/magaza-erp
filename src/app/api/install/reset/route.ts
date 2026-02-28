@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 import { cookies } from "next/headers";
 
 export async function GET(req: Request) {
@@ -8,7 +8,7 @@ export async function GET(req: Request) {
         (await cookies()).delete("is_installed");
 
         // 2. Reset DB Status
-        await prisma.systemConfig.upsert({
+        await db.systemConfig.upsert({
             where: { id: 1 },
             update: {
                 isInstalled: false,

@@ -4,8 +4,6 @@ import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
 
 import { getSession } from "@/lib/auth";
-import { getDynamicModules } from "@/lib/registry";
-import WidgetSlot from "@/components/ui/WidgetSlot";
 import { db } from "@/lib/db";
 import { getSettingByKey } from "@/actions/settings/settings-actions";
 
@@ -27,7 +25,6 @@ export default async function DashboardLayout({
 
     const modules = await getSettingByKey("modules") || {};
     const labels = await getSettingByKey("menu_labels") || {};
-    const dynamicModules = await getDynamicModules();
 
     return (
         <div className="flex h-screen overflow-hidden bg-background">
@@ -40,8 +37,6 @@ export default async function DashboardLayout({
                         storeId={session?.storeId || undefined}
                         modules={modules as any}
                         labels={labels as any}
-                        dynamicModules={dynamicModules}
-                        topWidgetSlot={<WidgetSlot name="sidebar-top" />}
                     />
                 </aside>
             )}
@@ -57,8 +52,6 @@ export default async function DashboardLayout({
                             storeId={session?.storeId || undefined}
                             modules={modules as any}
                             labels={labels as any}
-                            dynamicModules={dynamicModules}
-                            topWidgetSlot={<WidgetSlot name="sidebar-top" />}
                         />
                     )}
                     <div className="w-full flex-1">

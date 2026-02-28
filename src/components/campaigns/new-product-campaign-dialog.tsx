@@ -1,14 +1,35 @@
 ﻿"use client"
 
 import { useState } from "react"
-import { useProductCampaignForm } from "./hooks/useProductCampaignForm"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Plus, Calculator, Info, Check, Tag, ShoppingBag, Loader2 } from "lucide-react"
+import { createProductCampaign } from "@/actions/crm/campaign-product-actions"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+
+// Schema
+const formSchema = z.object({
+    name: z.string().min(2, "Kampanya adı en az 2 karakter olmalıdır"),
+
+    // Logic
+    buyQuantity: z.any(),
+    getQuantity: z.any(),
+    discountPercent: z.any(),
+    applyTo: z.enum(["CHEAPEST", "EXPENSIVE"]),
+
+    // Targeting - Split
+    targetCategoryIds: z.array(z.string()),
+    targetBrandIds: z.array(z.string()),
+
+    storeIds: z.array(z.string()).optional(),
+})
 
 interface NewProductCampaignDialogProps {
     uniqueCategories?: string[];
@@ -16,10 +37,127 @@ interface NewProductCampaignDialogProps {
 }
 
 export function NewProductCampaignDialog({ uniqueCategories = [], uniqueBrands = [] }: NewProductCampaignDialogProps) {
+    // === STATE ===
     const [open, setOpen] = useState(false)
-    const { form, formValues, isLoading, onSubmit, toggleCategory, toggleBrand } = useProductCampaignForm(() => setOpen(false));
+    const [isLoading, setIsLoading] = useState(false)
 
-    // Dynamic Summary Generation
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema) as any,
+        defaultValues: {
+            name: "",
+            buyQuantity: 1,
+            getQuantity: 1,
+            discountPercent: 100, // Free
+            applyTo: "CHEAPEST",
+            targetCategoryIds: [],
+            targetBrandIds: [],
+            storeIds: []
+        },
+    })
+
+    const formValues = form.watch();
+
+    // === HANDLERS ===
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        setIsLoading(true)
+        try {
+            const rules = {
+                buyQuantity: values.buyQuantity,
+                getQuantity: values.buyQuantity === 0 ? 999999 : values.getQuantity,
+                discountPercent: values.discountPercent,
+                applyTo: "CHEAPEST", // Force Cheapest
+                target: {
+                    categoryIds: values.targetCategoryIds,
+                    brandIds: values.targetBrandIds
+                }
+            };
+
+            // Backend Type inference
+            let type = "BOGO";
+            if (values.buyQuantity === 0) type = "DISCOUNT";
+            else if (values.buyQuantity === 1 && values.getQuantity === 1 && values.discountPercent === 100) type = "BOGO";
+
+            // @ts-ignore
+            const result = await createProductCampaign({
+                name: values.name,
+                description: "",
+                isActive: true,
+                startDate: new Date(),
+                storeIds: values.storeIds || [],
+                type: type,
+                rules: rules as any
+            });
+
+            if (result.success) {
+                toast.success("Kampanya oluşturuldu!");
+                setOpen(false)
+                form.reset()
+            } else {
+                toast.error(result.error)
+            }
+        } catch (error) {
+            toast.error("Bir hata oluştu")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const toggleCategory = (cat: string) => {
+        const current = form.getValues("targetCategoryIds");
+        if (current.includes(cat)) {
+            form.setValue("targetCategoryIds", current.filter(c => c !== cat));
+        } else {
+            form.setValue("targetCategoryIds", [...current, cat]);
+        }
+    }
+
+    const toggleBrand = (brand: string) => {
+        const current = form.getValues("targetBrandIds");
+        if (current.includes(brand)) {
+            form.setValue("targetBrandIds", current.filter(b => b !== brand));
+        } else {
+            form.setValue("targetBrandIds", [...current, brand]);
+        }
+    }
+
+    // === RENDER HELPERS ===
+
+    const renderCategoryList = () => (
+        <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
+            {uniqueCategories.map(cat => {
+                const isSelected = formValues.targetCategoryIds.includes(cat);
+                return (
+                    <div key={cat} onClick={() => toggleCategory(cat)}
+                        className={cn("flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs select-none transition-colors",
+                            isSelected ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-white text-gray-600 hover:text-gray-900")}>
+                        <div className={cn("w-3 h-3 border rounded flex items-center justify-center bg-white shrink-0", isSelected ? "border-indigo-600" : "border-gray-300")}>
+                            {isSelected && <Check className="w-2.5 h-2.5 text-indigo-600" />}
+                        </div>
+                        <span className="truncate">{cat}</span>
+                    </div>
+                )
+            })}
+        </div>
+    );
+
+    const renderBrandList = () => (
+        <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
+            {uniqueBrands.map(brand => {
+                const isSelected = formValues.targetBrandIds.includes(brand);
+                return (
+                    <div key={brand} onClick={() => toggleBrand(brand)}
+                        className={cn("flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs select-none transition-colors",
+                            isSelected ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-white text-gray-600 hover:text-gray-900")}>
+                        <div className={cn("w-3 h-3 border rounded flex items-center justify-center bg-white shrink-0", isSelected ? "border-indigo-600" : "border-gray-300")}>
+                            {isSelected && <Check className="w-2.5 h-2.5 text-indigo-600" />}
+                        </div>
+                        <span className="truncate">{brand}</span>
+                    </div>
+                )
+            })}
+        </div>
+    );
+
     const getCampaignSummary = () => {
         const { targetCategoryIds, targetBrandIds } = formValues;
         const buyQty = Number(formValues.buyQuantity); // Coerce to number
@@ -142,18 +280,7 @@ export function NewProductCampaignDialog({ uniqueCategories = [], uniqueBrands =
                                                 <div className="p-2 bg-gray-100 text-[10px] font-bold text-gray-500 uppercase text-center border-b">
                                                     KATEGORİLER
                                                 </div>
-                                                <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
-                                                    {uniqueCategories.map(cat => (
-                                                        <div key={cat} onClick={() => toggleCategory(cat)}
-                                                            className={cn("flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs select-none transition-colors",
-                                                                formValues.targetCategoryIds.includes(cat) ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-white text-gray-600 hover:text-gray-900")}>
-                                                            <div className={cn("w-3 h-3 border rounded flex items-center justify-center bg-white shrink-0", formValues.targetCategoryIds.includes(cat) ? "border-indigo-600" : "border-gray-300")}>
-                                                                {formValues.targetCategoryIds.includes(cat) && <Check className="w-2.5 h-2.5 text-indigo-600" />}
-                                                            </div>
-                                                            <span className="truncate">{cat}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                {renderCategoryList()}
                                             </div>
 
                                             {/* Brands */}
@@ -161,18 +288,7 @@ export function NewProductCampaignDialog({ uniqueCategories = [], uniqueBrands =
                                                 <div className="p-2 bg-gray-100 text-[10px] font-bold text-gray-500 uppercase text-center border-b">
                                                     MARKALAR
                                                 </div>
-                                                <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
-                                                    {uniqueBrands.map(brand => (
-                                                        <div key={brand} onClick={() => toggleBrand(brand)}
-                                                            className={cn("flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs select-none transition-colors",
-                                                                formValues.targetBrandIds.includes(brand) ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-white text-gray-600 hover:text-gray-900")}>
-                                                            <div className={cn("w-3 h-3 border rounded flex items-center justify-center bg-white shrink-0", formValues.targetBrandIds.includes(brand) ? "border-indigo-600" : "border-gray-300")}>
-                                                                {formValues.targetBrandIds.includes(brand) && <Check className="w-2.5 h-2.5 text-indigo-600" />}
-                                                            </div>
-                                                            <span className="truncate">{brand}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                {renderBrandList()}
                                             </div>
                                         </div>
                                     </div>
