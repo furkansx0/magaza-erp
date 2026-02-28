@@ -20,7 +20,8 @@ export default async function WidgetSlot({ name, ...props }: WidgetSlotProps) {
             .filter(w => w.slot === name)
             .map(w => ({
                 moduleId: mod.id,
-                componentName: w.component
+                componentName: w.component,
+                load: w.load
             }));
     });
 
@@ -30,10 +31,23 @@ export default async function WidgetSlot({ name, ...props }: WidgetSlotProps) {
     const renderedWidgets = await Promise.all(
         matchingWidgets.map(async (widgetDef, index) => {
             try {
-                // Webpack / Turbopack'in tum dosyalari (hooks, css, vb) taramasi sonucu coken build'i engellemek amaciyla:
-                // Sadece 'Widget' adli dosyalari (Hardcoded string patterniyle) hedef gosteriyoruz.
-                // İleride daha fazla widget istenirse 'exports.tsx' falan konulup oradan cekilebilir.
-                const WidgetComponent = (await import(`@/modules/${widgetDef.moduleId}/Widget`)).default;
+                // Webpack Module not found hatasini onlemek icin:
+                // Moduller artik Widget'larini kendileri `module-config.ts` uzerinden 
+                // `load: () => import('./Widget')` seklinde tanimlayacaklar.
+                let WidgetComponent: any = null;
+
+                if (widgetDef.load) {
+                    const mod = await widgetDef.load();
+                    WidgetComponent = mod.default || mod;
+                } else {
+                    // Eger load fonksiyonu yoksa (eski yapi) fallback olarak hala dinamik cekmeyi deneyebilir.
+                    // Fakat Next.js bunu statik analiz edince hata firlatir. O yuzden load fonksiyonu zorunlu kilinmalidir.
+                    console.warn(`[WidgetSlot] '${widgetDef.moduleId}' modulu 'load' fonksiyonu tanimlamadigi icin widget yuklenemedi.`);
+                    return null;
+                }
+
+                if (!WidgetComponent) return null;
+
                 // React requires a key for arrays of components
                 return <WidgetComponent key={`${widgetDef.moduleId}-${index}`} {...props} />;
             } catch (error) {

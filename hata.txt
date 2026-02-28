@@ -1,0 +1,6 @@
+Retrieving project…
+Deploying furkans-projects-6b4769c0/magaza-erp
+Uploading [--------------------] (0.0B/69B)
+Uploading [====================] (69.0B/69B)
+Error: Git author github-furkansx0@gmail.com must have access to the team Furkan's projects on Vercel to create deployments.
+Learn more: https://vercel.com/docs/deployments/troubleshoot-project-collaboration

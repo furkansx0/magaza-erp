@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
 
         // 1. Update System Config
         // We use upsert to ensure we update the singleton record (id: 1)
-        await db.systemConfig.upsert({
+        await prisma.systemConfig.upsert({
             where: { id: 1 },
             update: {
                 isInstalled: true,

@@ -11,6 +11,7 @@ export interface ModuleConfig {
     widgets?: {
         slot: string; // Hangi kancaya takılacağı (Örn: "sidebar-top")
         component: string; // Yüklenecek izole bileşen adı (Örn: "Widget")
+        load?: () => Promise<any>; // Webpack Module not found hatasini onlemek icin dogrudan statik import fonksiyonu (Onerilen yontem)
     }[];
 }
 
