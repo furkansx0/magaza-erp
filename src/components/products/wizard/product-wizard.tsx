@@ -888,14 +888,41 @@ export function ProductWizard({
                                 <div className="w-full space-y-3 pt-2">
                                     <Button
                                         className="w-full h-12 text-base gap-2 bg-blue-600 hover:bg-blue-700 shadow-blue-200 shadow-lg transition-all"
-                                        onClick={() => {
+                                        onClick={async () => {
                                             const active = matrixData.filter(x => x.enabled);
-                                            let count = active.length;
+                                            let variantsToPrint = active;
+
+                                            // Make sure we only print new ones in Edit mode unless they select all? Wait, logic says print new.
                                             if (mode === 'edit' && initialProduct) {
                                                 const initialIds = new Set(initialProduct.variants?.map((v: any) => v.id) || []);
-                                                count = active.filter(v => !initialIds.has(v.id)).length;
+                                                variantsToPrint = active.filter(v => !initialIds.has(v.id));
                                             }
-                                            toast.info(`Bartender ile ${count} adet yeni ürün etiketi yazdırılacak.`);
+
+                                            if (variantsToPrint.length === 0) {
+                                                toast.info("Yazdırılacak yeni barkod bulunamadı.");
+                                                return;
+                                            }
+
+                                            try {
+                                                toast.loading("Etiketler yazıcıya gönderiliyor...", { id: "print-batch" });
+                                                const { printBarcode } = await import("@/lib/print-barcode");
+
+                                                for (const v of variantsToPrint) {
+                                                    const nameStr = `${v.sku} ${v.color}`;
+                                                    await printBarcode({
+                                                        modelName: nameStr,
+                                                        sku: v.sku,
+                                                        barcode: v.barcode,
+                                                        size: v.size,
+                                                        season: model.season,
+                                                        salePrice: v.salePrice
+                                                    });
+                                                }
+
+                                                toast.success(`${variantsToPrint.length} adet etiket yazıcı kuyruğuna iletildi!`, { id: "print-batch" });
+                                            } catch (err: any) {
+                                                toast.error(err.message || "Yazdırma hatası", { id: "print-batch" });
+                                            }
                                         }}
                                     >
                                         <Printer className="w-5 h-5" />

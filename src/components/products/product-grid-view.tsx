@@ -870,6 +870,7 @@ export function ProductGrid(props: ProductGridProps) {
                                         <Button
                                             variant="ghost"
                                             className="h-6 w-6 p-0 hover:bg-blue-100 text-blue-600 rounded-full"
+                                            title="Ürünü Düzenle"
                                             onClick={() => {
                                                 const originalProduct = products.find(p => p.id === row.productId);
                                                 if (originalProduct) {
@@ -883,6 +884,33 @@ export function ProductGrid(props: ProductGridProps) {
                                         >
                                             <Pencil className="h-3.5 w-3.5" />
                                         </Button>
+
+                                        {row.type === "VARIANT" && (
+                                            <Button
+                                                variant="ghost"
+                                                className="h-6 w-6 p-0 hover:bg-gray-200 text-gray-700 rounded-full"
+                                                title="Barkod Etiketi Yazdır"
+                                                onClick={async () => {
+                                                    try {
+                                                        const { printBarcode } = await import("@/lib/print-barcode");
+                                                        const nameStr = `${row.sku} ${row.color}`;
+                                                        await printBarcode({
+                                                            modelName: nameStr,
+                                                            sku: row.sku,
+                                                            barcode: row.barcode,
+                                                            size: row.size,
+                                                            season: row.season,
+                                                            salePrice: row.salePrice
+                                                        });
+                                                        toast.success("Yazdırma komutu gönderildi.");
+                                                    } catch (err: any) {
+                                                        toast.error(err.message || "Yazdırma hatası");
+                                                    }
+                                                }}
+                                            >
+                                                <Printer className="h-3.5 w-3.5" />
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
