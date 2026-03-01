@@ -7,12 +7,26 @@ export async function printBarcode(variant: {
     color?: string; // Yeni renk argümanı
     salePrice?: number | string;
 }) {
-    const sku = (variant.sku || "").trim();
-    const beden = variant.size || "";
-    const sezon = variant.season || "";
-    const renk = variant.color || "";
+    // Türkçe karakterleri ve yazıcının desteklemeyeceği sembolleri temizle/değiştir
+    const cleanStr = (str: string) => {
+        if (!str) return "";
+        return str
+            .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+            .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+            .replace(/ş/g, 's').replace(/Ş/g, 'S')
+            .replace(/ı/g, 'i').replace(/İ/g, 'I')
+            .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+            .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+            .replace(/[^a-zA-Z0-9\s\.\,\-\/]/g, '') // Desteklenmeyen (Ã—, â€¢ vb) sembolleri uçur
+            .trim();
+    }
+
+    const sku = cleanStr(variant.sku || "");
+    const beden = cleanStr(variant.size || "");
+    const sezon = cleanStr(variant.season || "");
+    const renk = cleanStr(variant.color || "");
     const fiyat = variant.salePrice ? String(variant.salePrice) : "0";
-    const barkod = variant.barcode || "";
+    const barkod = cleanStr(variant.barcode || "");
 
     if (!barkod || barkod === "-") {
         throw new Error("Ürünün barkodu bulunamadı");
