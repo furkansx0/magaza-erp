@@ -3,7 +3,7 @@
 import { db } from "@/lib/db"
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, subMonths } from "date-fns"
 
-export type DateRangeType = "today" | "yesterday" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "last6Months" | "custom";
+export type DateRangeType = "today" | "yesterday" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "last6Months" | "last30Days" | "custom";
 
 interface DateRangeParams {
     range: DateRangeType;
@@ -33,6 +33,8 @@ function getDateRange(params: DateRangeParams): { start: Date, end: Date } {
             return { start: lastMonthStart, end: lastMonthEnd };
         case "last6Months":
             return { start: startOfMonth(subMonths(today, 6)), end: endOfDay(today) };
+        case "last30Days":
+            return { start: startOfDay(subDays(today, 30)), end: endOfDay(today) };
         case "custom":
             return {
                 start: startOfDay(params.customStart || today),
