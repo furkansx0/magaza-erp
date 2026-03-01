@@ -1,3 +1,13 @@
+function replaceTurkishChars(str: string): string {
+    return str
+        .replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
+        .replace(/Ü/g, 'U').replace(/ü/g, 'u')
+        .replace(/Ş/g, 'S').replace(/ş/g, 's')
+        .replace(/İ/g, 'I').replace(/ı/g, 'i')
+        .replace(/Ö/g, 'O').replace(/ö/g, 'o')
+        .replace(/Ç/g, 'C').replace(/ç/g, 'c');
+}
+
 export async function printBarcode(variant: {
     modelName?: string;
     sku?: string;
@@ -6,11 +16,15 @@ export async function printBarcode(variant: {
     season?: string;
     color?: string; // Yeni renk argümanı
     salePrice?: number | string;
+    quantity?: number; // Yazdırılacak miktar
 }) {
-    const sku = (variant.sku || "").trim();
-    const beden = variant.size || "";
-    const sezon = variant.season || "";
-    const renk = variant.color || "";
+    const qty = variant.quantity || 1;
+    const qtyStr = String(qty).padStart(4, '0'); // Q0001 formatı için
+
+    const sku = replaceTurkishChars((variant.sku || "").trim());
+    const beden = replaceTurkishChars(variant.size || "");
+    const sezon = replaceTurkishChars(variant.season || "");
+    const renk = replaceTurkishChars(variant.color || "");
     const fiyat = variant.salePrice ? String(variant.salePrice) : "0";
     const barkod = variant.barcode || "";
 
@@ -26,7 +40,7 @@ export async function printBarcode(variant: {
     raw_data += `192200000510140${renk}\n`;
     raw_data += `192200000310006${fiyat} TL\n`;
     raw_data += `1E2202000000003${barkod}\n`;
-    raw_data += `Q0001\nE`;
+    raw_data += `Q${qtyStr}\nE`;
 
     const payload = { raw_data };
 

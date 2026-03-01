@@ -908,6 +908,10 @@ export function ProductWizard({
                                                 const { printBarcode } = await import("@/lib/print-barcode");
 
                                                 for (const v of variantsToPrint) {
+                                                    // Tüm mağazalardaki stok miktarını topla
+                                                    const totalStock = Object.values(v.stocks || {}).reduce((acc: number, val: any) => acc + Number(val), 0);
+                                                    const printQty = totalStock > 0 ? totalStock : 1;
+
                                                     await printBarcode({
                                                         modelName: v.sku, // Sadece SKU
                                                         sku: v.sku,
@@ -915,7 +919,8 @@ export function ProductWizard({
                                                         size: v.size,
                                                         season: model.season,
                                                         color: v.color,
-                                                        salePrice: v.salePrice
+                                                        salePrice: v.salePrice,
+                                                        quantity: printQty
                                                     });
                                                 }
 

@@ -192,6 +192,13 @@ export function ProductGrid(props: ProductGridProps) {
     const [sourceStoreId, setSourceStoreId] = React.useState("")
     const [targetStoreId, setTargetStoreId] = React.useState("")
 
+    // Print Barcode Dialog State
+    const [printBarcodeOpen, setPrintBarcodeOpen] = React.useState(false)
+    const [variantToPrint, setVariantToPrint] = React.useState<GridRow | null>(null)
+    const [printQuantity, setPrintQuantity] = React.useState<number>(1)
+    const [printMode, setPrintMode] = React.useState<"manual" | "store_stock">("store_stock")
+    const [printStoreId, setPrintStoreId] = React.useState<string>("all")
+
     // Wizard State
     const [wizardOpen, setWizardOpen] = React.useState(false)
     const [wizardData, setWizardData] = React.useState<any>(null)
@@ -479,6 +486,9 @@ export function ProductGrid(props: ProductGridProps) {
             const { printBarcode } = await import("@/lib/print-barcode");
 
             for (const v of variantsToPrint) {
+                // Toplam stok kadar yazdır, yoksada 1 adet yazdır
+                const qty = v.stockTotal > 0 ? v.stockTotal : 1;
+
                 await printBarcode({
                     modelName: v.sku,
                     sku: v.sku,
@@ -486,13 +496,56 @@ export function ProductGrid(props: ProductGridProps) {
                     size: v.size,
                     season: v.season,
                     color: v.color,
-                    salePrice: v.salePrice
+                    salePrice: v.salePrice,
+                    quantity: qty
                 });
             }
 
-            toast.success(`${variantsToPrint.length} adet etiket yazıcı kuyruğuna iletildi!`, { id: "print-batch-grid" });
+            toast.success(`${variantsToPrint.length} adet varyantın etiketleri stok miktarınca yazıcı kuyruğuna iletildi!`, { id: "print-batch-grid" });
         } catch (err: any) {
             toast.error(err.message || "Yazdırma hatası", { id: "print-batch-grid" });
+        }
+    }
+
+    const executePrintSingle = async () => {
+        if (!variantToPrint) return;
+
+        try {
+            toast.loading("Etiket yazıcıya gönderiliyor...", { id: "print-single" });
+            const { printBarcode } = await import("@/lib/print-barcode");
+
+            let finalQty = 1;
+
+            if (printMode === "manual") {
+                finalQty = printQuantity;
+            } else if (printMode === "store_stock") {
+                if (printStoreId === "all") {
+                    finalQty = variantToPrint.stockTotal > 0 ? variantToPrint.stockTotal : 1;
+                } else {
+                    const storeQty = variantToPrint[`stock_${printStoreId}`] || 0;
+                    if (storeQty > 0) finalQty = storeQty;
+                    else {
+                        toast.error("Seçilen mağazada stok yok, işlem iptal edildi.", { id: "print-single" });
+                        return;
+                    }
+                }
+            }
+
+            await printBarcode({
+                modelName: variantToPrint.sku,
+                sku: variantToPrint.sku,
+                barcode: variantToPrint.barcode,
+                size: variantToPrint.size,
+                season: variantToPrint.season,
+                color: variantToPrint.color,
+                salePrice: variantToPrint.salePrice,
+                quantity: finalQty
+            });
+
+            toast.success(`${finalQty} adet etiket yazdırıldı.`, { id: "print-single" });
+            setPrintBarcodeOpen(false);
+        } catch (err: any) {
+            toast.error(err.message || "Yazdırma hatası", { id: "print-single" });
         }
     }
 
@@ -918,22 +971,12 @@ export function ProductGrid(props: ProductGridProps) {
                                                 variant="ghost"
                                                 className="h-6 w-6 p-0 hover:bg-gray-200 text-gray-700 rounded-full"
                                                 title="Barkod Etiketi Yazdır"
-                                                onClick={async () => {
-                                                    try {
-                                                        const { printBarcode } = await import("@/lib/print-barcode");
-                                                        await printBarcode({
-                                                            modelName: row.sku,
-                                                            sku: row.sku,
-                                                            barcode: row.barcode,
-                                                            size: row.size,
-                                                            season: row.season,
-                                                            color: row.color,
-                                                            salePrice: row.salePrice
-                                                        });
-                                                        toast.success("Yazdırma komutu gönderildi.");
-                                                    } catch (err: any) {
-                                                        toast.error(err.message || "Yazdırma hatası");
-                                                    }
+                                                onClick={() => {
+                                                    setVariantToPrint(row);
+                                                    setPrintMode("store_stock");
+                                                    setPrintStoreId("all");
+                                                    setPrintQuantity(1);
+                                                    setPrintBarcodeOpen(true);
                                                 }}
                                             >
                                                 <Printer className="h-3.5 w-3.5" />
@@ -968,6 +1011,77 @@ export function ProductGrid(props: ProductGridProps) {
                     mode={wizardMode}
                 />
             )}
+
+            {/* Print Barcode Modal */}
+            <Dialog open={printBarcodeOpen} onOpenChange={setPrintBarcodeOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Barkod Etiketi Yazdır</DialogTitle>
+                    </DialogHeader>
+                    {variantToPrint && (
+                        <div className="space-y-4 py-4">
+                            <div className="bg-gray-50 border p-3 rounded-md text-sm">
+                                <p><strong>SKU:</strong> {variantToPrint.sku}</p>
+                                <p><strong>Model:</strong> {variantToPrint.modelName}</p>
+                                <p><strong>Beden/Renk:</strong> {variantToPrint.size} / {variantToPrint.color}</p>
+                                <p><strong>Stok Toplamı:</strong> {variantToPrint.stockTotal}</p>
+                            </div>
+
+                            <div className="space-y-2 pt-2">
+                                <Label>Baskı Yöntemi</Label>
+                                <Select value={printMode} onValueChange={(val: any) => setPrintMode(val)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seçiniz..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="store_stock">Mağaza Stok Miktarına Göre</SelectItem>
+                                        <SelectItem value="manual">Manuel Miktar Gir</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {printMode === "store_stock" && (
+                                <div className="space-y-2">
+                                    <Label>Hangi Mağazanın Stoğu Baz Alınsın?</Label>
+                                    <Select value={printStoreId} onValueChange={setPrintStoreId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Mağaza Seçin" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Tüm Mağazaların Toplamı ({variantToPrint.stockTotal} Adet)</SelectItem>
+                                            {stores.map(s => (
+                                                <SelectItem key={s.id} value={s.id}>
+                                                    {s.name} ({variantToPrint[`stock_${s.id}`] || 0} Adet)
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
+                            {printMode === "manual" && (
+                                <div className="space-y-2">
+                                    <Label>Basılacak Adet</Label>
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        max={500}
+                                        value={printQuantity}
+                                        onChange={(e) => setPrintQuantity(parseInt(e.target.value) || 1)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setPrintBarcodeOpen(false)}>İptal</Button>
+                        <Button onClick={executePrintSingle} className="bg-blue-600 hover:bg-blue-700">
+                            <Printer className="mr-2 h-4 w-4" /> Yazdır
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     )
 }
