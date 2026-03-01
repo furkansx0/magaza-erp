@@ -4,16 +4,13 @@ export async function printBarcode(variant: {
     barcode?: string;
     size?: string;
     season?: string;
+    color?: string; // Yeni renk argümanı
     salePrice?: number | string;
 }) {
-    // 1. Isim ve satır kırma (Word Wrap logic)
-    // "Tasarımda X:10 noktasından başlayan stok adı/kodu çok uzun olabilir. 16 karakteri aşıyorsa iki satıra bölünür."
-    const nameStr = (variant.modelName || variant.sku || "").trim();
-    const firstLine = nameStr.substring(0, 16);
-    const secondLine = nameStr.substring(16, 32); 
-
+    const sku = (variant.sku || "").trim();
     const beden = variant.size || "";
     const sezon = variant.season || "";
+    const renk = variant.color || "";
     const fiyat = variant.salePrice ? String(variant.salePrice) : "0";
     const barkod = variant.barcode || "";
 
@@ -21,16 +18,14 @@ export async function printBarcode(variant: {
         throw new Error("Ürünün barkodu bulunamadı");
     }
 
-    // 2. PPLA Raw Data Şablonu (Pad edilmiş, sabit pozisyonlarda)
+    // Kullanıcının belirttiği tam PPLA şablonu
     let raw_data = `<STX>L\nD11\n`;
-    raw_data += `192200000860010${firstLine}\n`;
-    if (secondLine) {
-        raw_data += `192200000660010${secondLine}\n`;
-    }
-    raw_data += `193300000400146${beden}\n`;
-    raw_data += `192200000870148${sezon}\n`;
-    raw_data += `192200000350010${fiyat} TL\n`;
-    raw_data += `1E2202000030005${barkod}\n`;
+    raw_data += `192200000890003${sku}\n`;
+    raw_data += `193300000860154${beden}\n`;
+    raw_data += `192200000310144${sezon}\n`;
+    raw_data += `192200000510140${renk}\n`;
+    raw_data += `192200000310006${fiyat} TL\n`;
+    raw_data += `1E2202000000003${barkod}\n`;
     raw_data += `Q0001\nE`;
 
     const payload = { raw_data };
@@ -47,7 +42,7 @@ export async function printBarcode(variant: {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         return { success: true };
     } catch (e: any) {
         console.error("Print Error:", e);

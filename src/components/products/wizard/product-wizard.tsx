@@ -914,6 +914,7 @@ export function ProductWizard({
                                                         barcode: v.barcode,
                                                         size: v.size,
                                                         season: model.season,
+                                                        color: v.color,
                                                         salePrice: v.salePrice
                                                     });
                                                 }

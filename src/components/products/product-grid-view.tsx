@@ -485,6 +485,7 @@ export function ProductGrid(props: ProductGridProps) {
                     barcode: v.barcode,
                     size: v.size,
                     season: v.season,
+                    color: v.color,
                     salePrice: v.salePrice
                 });
             }
@@ -926,6 +927,7 @@ export function ProductGrid(props: ProductGridProps) {
                                                             barcode: row.barcode,
                                                             size: row.size,
                                                             season: row.season,
+                                                            color: row.color,
                                                             salePrice: row.salePrice
                                                         });
                                                         toast.success("Yazdırma komutu gönderildi.");
