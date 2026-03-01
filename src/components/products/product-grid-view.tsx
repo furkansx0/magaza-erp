@@ -471,7 +471,7 @@ export function ProductGrid(props: ProductGridProps) {
     // --- COLUMN RESIZING LOGIC ---
     // Initial widths
     const [colWidths, setColWidths] = React.useState<Record<string, number>>({
-        sku: 110,
+        sku: 140,
         name: 180,
         barcode: 90,
         color: 45,
