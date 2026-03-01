@@ -468,6 +468,33 @@ export function ProductGrid(props: ProductGridProps) {
         else toast.error(res.error);
     }
 
+    const handleBulkPrint = async () => {
+        if (selectedIds.length === 0) return toast.error("Yazdırılacak ürün seçiniz");
+
+        const variantsToPrint = filteredData.filter(r => selectedIds.includes(r.id) && r.type === "VARIANT");
+        if (variantsToPrint.length === 0) return toast.error("Seçili öğeler arasında yazdırılabilir varyant bulunamadı.");
+
+        try {
+            toast.loading("Etiketler yazıcıya gönderiliyor...", { id: "print-batch-grid" });
+            const { printBarcode } = await import("@/lib/print-barcode");
+
+            for (const v of variantsToPrint) {
+                await printBarcode({
+                    modelName: v.sku,
+                    sku: v.sku,
+                    barcode: v.barcode,
+                    size: v.size,
+                    season: v.season,
+                    salePrice: v.salePrice
+                });
+            }
+
+            toast.success(`${variantsToPrint.length} adet etiket yazıcı kuyruğuna iletildi!`, { id: "print-batch-grid" });
+        } catch (err: any) {
+            toast.error(err.message || "Yazdırma hatası", { id: "print-batch-grid" });
+        }
+    }
+
     // --- COLUMN RESIZING LOGIC ---
     // Initial widths
     const [colWidths, setColWidths] = React.useState<Record<string, number>>({
@@ -747,7 +774,7 @@ export function ProductGrid(props: ProductGridProps) {
                 <div className="w-[1px] h-4 bg-gray-300 my-auto mx-1" />
                 <ExcelImportDialog stores={stores} onSuccess={() => router.refresh()} />
 
-                <Button variant="ghost" size="sm" onClick={() => window.print()} className="h-7 text-xs hover:bg-white"><Printer className="w-3 h-3 mr-1" /> Yazdır</Button>
+                <Button variant="ghost" size="sm" onClick={handleBulkPrint} disabled={selectedIds.length === 0} className="h-7 text-xs hover:bg-white"><Printer className="w-3 h-3 mr-1" /> Yazdır</Button>
 
                 <div className="w-[1px] h-4 bg-gray-300 my-auto mx-1" />
 

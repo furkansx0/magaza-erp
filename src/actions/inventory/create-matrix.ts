@@ -11,6 +11,7 @@ const VariantSchema = z.object({
     color: z.string(),
     size: z.string(),
     barcode: z.string().optional(), // Allow empty, will default to SKU in backend
+    sku: z.string().optional(), // Sku sent from frontend
     purchasePrice: z.number().min(0, "Alış fiyatı negatif olamaz"),
     salePrice: z.number().min(0, "Satış fiyatı negatif olamaz"),
     stocks: z.record(z.string(), z.number()), // StoreId -> Quantity
@@ -70,7 +71,10 @@ export async function createProductMatrix(data: MatrixFormValues) {
             // 2. Create Variants & Stock
             for (const v of validated.variants) {
                 // Generate a SKU if not provided or just use pattern
-                const sku = `${model.name.substring(0, 4)}-${v.color.substring(0, 3)}-${v.size}`.toUpperCase().replace(/\s+/g, '');
+                let finalSku = v.sku?.trim();
+                if (!finalSku) {
+                    finalSku = `${model.name.substring(0, 4)}-${v.color.substring(0, 3)}-${v.size}`.toUpperCase().replace(/\s+/g, '');
+                }
 
                 // Fallback for barcode: If empty/whitespace (should be caught by Zod but just in case) or duplicate in batch?
                 // Actually, if user wants same barcode for all variants (bad practice but happens), we can't allow it due to DB unique.
@@ -78,7 +82,7 @@ export async function createProductMatrix(data: MatrixFormValues) {
                 // However, user likely entered duplicates manually in the same batch.
 
                 // If barcode is effectively "empty" in input (passed validation somehow) or we want to support empty -> default:
-                const finalBarcode = v.barcode && v.barcode.trim().length > 0 ? v.barcode : sku;
+                const finalBarcode = v.barcode && v.barcode.trim().length > 0 ? v.barcode : finalSku;
 
                 const variant = await tx.productVariant.create({
                     data: {
@@ -86,7 +90,7 @@ export async function createProductMatrix(data: MatrixFormValues) {
                         color: v.color,
                         size: v.size,
                         barcode: finalBarcode,
-                        sku: sku,
+                        sku: finalSku,
                         purchasePrice: v.purchasePrice,
                         salePrice: v.salePrice,
                     }

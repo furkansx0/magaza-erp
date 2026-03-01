@@ -908,9 +908,8 @@ export function ProductWizard({
                                                 const { printBarcode } = await import("@/lib/print-barcode");
 
                                                 for (const v of variantsToPrint) {
-                                                    const nameStr = `${v.sku} ${v.color}`;
                                                     await printBarcode({
-                                                        modelName: nameStr,
+                                                        modelName: v.sku, // Sadece SKU
                                                         sku: v.sku,
                                                         barcode: v.barcode,
                                                         size: v.size,
