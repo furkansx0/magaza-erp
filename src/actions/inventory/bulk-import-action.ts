@@ -6,14 +6,13 @@ import { generateNextBarcodes } from "./barcode-actions";
 
 interface ImportRow {
     "Model Adı"?: string;
-    "Model Kodu"?: string; // Optional Model Code
     "Marka"?: string;
     "Kategori"?: string;
     "Sezon"?: string;
     "Renk"?: string;
     "Beden"?: string;
-    "SKU"?: string;
     "Stok Kodu"?: string;
+    "SKU"?: string;
     "Barkod"?: string;
     "Alış Fiyatı"?: number | string;
     "Satış Fiyatı"?: number | string;
@@ -73,6 +72,8 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         let usedBarcodeIndex = 0;
         let updatedItems: string[] = []; // Track names of updated items
 
+        let newlyCreatedVariants: any[] = [];
+
         // 2. Process Each Model Group
         // Increase timeout for large batches
         await db.$transaction(async (tx) => {
@@ -105,17 +106,10 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                     const color = row["Renk"] || "-";
                     const size = row["Beden"] || "-";
                     // Improve Auto-SKU Generation to avoid collisions
-                    // Old: matches first 3 chars (Bad for "Slim Fit Shirt" vs "Slim Fit Pant")
-                    // New: Use simplified slugs OR Model Code if provided
                     const simpleSlug = (txt: string) => txt.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().substring(0, 6);
 
-                    const modelCode = row["Model Kodu"];
-                    const prefix = modelCode && String(modelCode).trim() !== ""
-                        ? String(modelCode).trim().toUpperCase()
-                        : simpleSlug(model.name);
-
-                    const sku = row["SKU"] || row["Stok Kodu"] ||
-                        `${prefix}-${simpleSlug(color)}-${size}`.toUpperCase();
+                    const sku = row["Stok Kodu"] || row["SKU"] ||
+                        `${simpleSlug(model.name)}-${simpleSlug(color)}-${size}`.toUpperCase();
 
                     let barcode = row["Barkod"];
                     // Assign from batch if missing
@@ -166,6 +160,10 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                             }
                         });
                         createdCount++;
+                        newlyCreatedVariants.push({
+                            ...variant,
+                            season: model.season
+                        });
                     }
 
                     // Process Stocks (Dynamic Columns)
@@ -221,6 +219,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         return {
             success: true,
             message: msg,
+            newVariants: newlyCreatedVariants,
             diagnostics: {
                 total: totalRows,
                 valid: validRows.length,
