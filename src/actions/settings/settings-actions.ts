@@ -1,113 +1,47 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { revalidatePath } from "next/cache"
 
-/**
- * Retrieves all system settings, optionally filtered by group.
- */
-export async function getSettings(group?: string) {
-    try {
-        const where = group ? { group } : {};
-        const settings = await db.systemSetting.findMany({
-            where,
-            orderBy: { key: 'asc' }
-        });
-        return { success: true, settings };
-    } catch (error) {
-        console.error("Get Settings Error:", error);
-        return { success: false, error: "Ayarlar çekilemedi." };
-    }
-}
-
-/**
- * Retrieves a single setting by key.
- * Used internally by other modules.
- */
 export async function getSettingByKey(key: string) {
     try {
         const setting = await db.systemSetting.findUnique({
             where: { key }
         });
-        return setting ? setting.value : null;
-    } catch (error) {
-        return null; // Fail safe
+        return setting?.value || null;
+    } catch {
+        return null;
     }
 }
 
-/**
- * Updates or creates a system setting.
- */
-export async function updateSetting(key: string, value: any, description?: string, group: string = 'GENERAL') {
+export async function initDefaultSettings() {
+    try {
+        const defaultSettings = [
+            { key: "ui.sidebar.labels", value: { dashboard: "Panel", pos: "Satış", stores: "Mağazalar" }, type: "json" },
+            { key: "system.is_installed", value: "true", type: "boolean" }
+        ];
+
+        for (const s of defaultSettings) {
+            await db.systemSetting.upsert({
+                where: { key: s.key },
+                create: { key: s.key, value: s.value, group: "GENERAL" },
+                update: {} // don't overwrite if exists
+            });
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false };
+    }
+}
+
+export async function updateSetting(key: string, value: any, description?: string, group?: string) {
     try {
         await db.systemSetting.upsert({
             where: { key },
-            create: {
-                key,
-                value,
-                description,
-                group
-            },
-            update: {
-                value,
-                ...(description ? { description } : {}),
-                ...(group ? { group } : {})
-            }
+            create: { key, value: JSON.stringify(value), group: group || "GENERAL", description },
+            update: { value: JSON.stringify(value), description, group: group || "GENERAL" }
         });
-
-        revalidatePath("/dashboard/settings");
-        return { success: true, message: "Ayar güncellendi." };
+        return { success: true };
     } catch (error) {
-        console.error("Update Setting Error:", error);
-        return { success: false, error: "Güncelleme başarısız." };
+        return { success: false };
     }
-}
-
-/**
- * Initialize default settings if they don't exist.
- * This can be called on dashboard load or via a button.
- */
-export async function initDefaultSettings() {
-    const defaults = [
-        {
-            key: "inventory.transfer_rules",
-            group: "INVENTORY",
-            description: "Mağazalar arası transfer mantığı yapılandırması.",
-            value: {
-                min_transfer_threshold: 3,
-                aggressive_factor: 3,
-                retention_strategy: "KEEP_SMALLEST", // KEEP_SMALLEST, KEEP_LARGEST, KEEP_EDGES, KEEP_MOST_STOCKED, DRAIN_ALL
-                retention_count: 1
-            }
-        },
-        {
-            key: "product.attributes",
-            group: "PRODUCT",
-            description: "Ürünlere eklenebilecek dinamik özellikler.",
-            value: [
-                { key: "fabric_type", label: "Kumaş Tipi", type: "select", options: ["Pamuk", "Polyester", "Keten", "Yün"] },
-                { key: "season", label: "Sezon", type: "text" },
-                { key: "origin", label: "Menşei", type: "text" }
-            ]
-        }
-    ];
-
-    let count = 0;
-    for (const def of defaults) {
-        const existing = await db.systemSetting.findUnique({ where: { key: def.key } });
-        if (!existing) {
-            await db.systemSetting.create({
-                data: {
-                    key: def.key,
-                    group: def.group,
-                    description: def.description,
-                    value: def.value
-                }
-            });
-            count++;
-        }
-    }
-
-    if (count > 0) revalidatePath("/dashboard/settings");
-    return { success: true, message: `${count} varsayılan ayar oluşturuldu.` };
 }

@@ -183,12 +183,6 @@ export function Sidebar({ className, userRole, userPermissions, storeId, modules
 
             {/* Settings Button at Bottom */}
             <div className="px-3 py-2 border-t space-y-1">
-                <Button variant="ghost" className="w-full justify-start select-none text-orange-600 hover:text-orange-700 hover:bg-orange-50" asChild>
-                    <Link href="/dashboard/developer">
-                        <TestTube className="mr-2 h-4 w-4" />
-                        Geliştirici
-                    </Link>
-                </Button>
                 <Button variant="ghost" className="w-full justify-start select-none" asChild>
                     <Link href="/dashboard/settings">
                         <Settings className="mr-2 h-4 w-4" />
