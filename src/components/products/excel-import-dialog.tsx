@@ -148,7 +148,8 @@ export function ExcelImportDialog({ stores, onSuccess }: ExcelImportDialogProps)
                     size: v.size,
                     season: v.season,
                     color: v.color,
-                    salePrice: v.salePrice
+                    salePrice: v.salePrice,
+                    quantity: v.totalStock || 1
                 });
             }
 
