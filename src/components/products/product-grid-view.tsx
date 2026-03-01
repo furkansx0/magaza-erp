@@ -893,9 +893,8 @@ export function ProductGrid(props: ProductGridProps) {
                                                 onClick={async () => {
                                                     try {
                                                         const { printBarcode } = await import("@/lib/print-barcode");
-                                                        const nameStr = `${row.sku} ${row.color}`;
                                                         await printBarcode({
-                                                            modelName: nameStr,
+                                                            modelName: row.sku,
                                                             sku: row.sku,
                                                             barcode: row.barcode,
                                                             size: row.size,
