@@ -626,7 +626,7 @@ export function ProductWizard({
                                                 <Badge key={s} variant="outline" className={cn("px-2 py-1", isLocked ? "bg-gray-100 text-gray-500 border-gray-300" : "bg-white border-blue-200")}>
                                                     {s}
                                                     {!isLocked && (
-                                                        <span className="ml-2 cursor-pointer text-gray-400 hover:text-red-500" onClick={() => setCurrentSizes(prev => prev.filter(x => x !== s))}>Ã—</span>
+                                                        <span className="ml-2 cursor-pointer text-gray-400 hover:text-red-500" onClick={() => setCurrentSizes(prev => prev.filter(x => x !== s))}>×</span>
                                                     )}
                                                     {isLocked && <span className="ml-2 text-gray-400">ğŸ”’</span>}
                                                 </Badge>

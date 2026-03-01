@@ -409,7 +409,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                         <TableCell>
                                                             <div className="flex flex-col">
                                                                 <span className="font-semibold text-sm">{item.modelName}</span>
-                                                                <span className="text-xs text-muted-foreground">{item.barcode} â€¢ {item.color}/{item.size}</span>
+                                                                <span className="text-xs text-muted-foreground">{item.barcode} • {item.color}/{item.size}</span>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
@@ -466,7 +466,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                         <TableCell>
                                                             <div className="flex flex-col">
                                                                 <span className="font-semibold text-sm">{item.modelName}</span>
-                                                                <span className="text-xs text-muted-foreground">{item.barcode} â€¢ {item.color}/{item.size} â€¢ Stok: {item.stock}</span>
+                                                                <span className="text-xs text-muted-foreground">{item.barcode} • {item.color}/{item.size} • Stok: {item.stock}</span>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
@@ -518,7 +518,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                             <TableCell>
                                                 <div className="flex flex-col">
                                                     <span className="font-semibold">{item.modelName}</span>
-                                                    <span className="text-xs text-muted-foreground">{item.barcode} â€¢ {item.color}/{item.size} â€¢ Stok: {item.stock}</span>
+                                                    <span className="text-xs text-muted-foreground">{item.barcode} • {item.color}/{item.size} • Stok: {item.stock}</span>
                                                     {campaignDiscounts.some(d => d.matchedItemIds.includes(item.variantId)) && (
                                                         <span className="text-[10px] text-green-600 flex items-center gap-1 mt-0.5 font-bold">
                                                             <Tag className="w-3 h-3" />
