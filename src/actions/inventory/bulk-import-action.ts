@@ -160,43 +160,48 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                             }
                         });
                         createdCount++;
-                        newlyCreatedVariants.push({
-                            ...variant,
-                            season: model.season
-                        });
-                    }
+                        let newVariantTotalStock = 0;
 
-                    // Process Stocks (Dynamic Columns)
-                    for (const store of stores) {
-                        const quantity = Number(row[store.name]);
-                        if (!isNaN(quantity)) {
-                            const existingStock = await tx.stock.findUnique({
-                                where: {
-                                    variantId_storeId: {
-                                        variantId: variant.id,
-                                        storeId: store.id
+                        // Process Stocks (Dynamic Columns)
+                        for (const store of stores) {
+                            const quantity = Number(row[store.name]);
+                            if (!isNaN(quantity) && quantity > 0) {
+                                newVariantTotalStock += quantity;
+                                const existingStock = await tx.stock.findUnique({
+                                    where: {
+                                        variantId_storeId: {
+                                            variantId: variant.id,
+                                            storeId: store.id
+                                        }
                                     }
+                                });
+
+                                if (existingStock) {
+                                    await tx.stock.update({
+                                        where: { id: existingStock.id },
+                                        data: { quantity: quantity }
+                                    });
+                                } else {
+                                    await tx.stock.create({
+                                        data: {
+                                            variantId: variant.id,
+                                            storeId: store.id,
+                                            quantity: quantity
+                                        }
+                                    });
                                 }
-                            });
-
-                            if (existingStock) {
-                                await tx.stock.update({
-                                    where: { id: existingStock.id },
-                                    data: { quantity: quantity }
-                                });
-                            } else {
-                                await tx.stock.create({
-                                    data: {
-                                        variantId: variant.id,
-                                        storeId: store.id,
-                                        quantity: quantity
-                                    }
-                                });
                             }
                         }
+
+                        // Stok bilgisiyle birlikte push et
+                        newlyCreatedVariants.push({
+                            ...variant,
+                            season: model.season,
+                            totalStock: newVariantTotalStock
+                        });
                     }
-                }
-            }
+                } // for groupRows
+            } // for modelGroups
         }, {
             maxWait: 20000,
             timeout: 60000
