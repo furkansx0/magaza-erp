@@ -1,20 +1,15 @@
 ﻿"use client"
 
 import * as React from "react"
-import { format, subDays, startOfMonth, startOfWeek } from "date-fns"
+import { format } from "date-fns"
 import { tr } from "date-fns/locale"
-import { Calendar as CalendarIcon, Store as StoreIcon, TrendingUp, TrendingDown, DollarSign, ShoppingBag } from "lucide-react"
-import { cn, formatCurrency } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
+import { Store as StoreIcon, TrendingUp, TrendingDown, DollarSign, ShoppingBag } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { DateRangePicker } from "@/components/reporting/date-range-picker"
+import { DateRangeType } from "@/actions/settings/store-reporting-actions"
 import { getStores } from "@/actions/settings/store-actions"
 import { getSalesReport, ReportSummary, ChartData } from "@/actions/settings/report-actions"
 import { toast } from "sonner"
@@ -34,10 +29,10 @@ import {
 } from "recharts"
 
 export default function ReportsPage() {
-    const [date, setDate] = React.useState<Date | undefined>(new Date())
-    const [dateRange, setDateRange] = React.useState<{ from: Date, to: Date }>({
-        from: startOfMonth(new Date()),
-        to: new Date()
+    const [dateRange, setDateRange] = React.useState<{ range: DateRangeType, customStart?: Date, customEnd?: Date }>({
+        range: "thisMonth",
+        customStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // startOfMonth
+        customEnd: new Date()
     })
     const [storeId, setStoreId] = React.useState("all")
     const [stores, setStores] = React.useState<{ id: string, name: string }[]>([])
@@ -59,8 +54,8 @@ export default function ReportsPage() {
             setLoading(true);
             try {
                 const res = await getSalesReport(
-                    dateRange.from.toISOString(),
-                    dateRange.to.toISOString(),
+                    dateRange.customStart?.toISOString(),
+                    dateRange.customEnd?.toISOString(),
                     storeId
                 );
                 setSummary(res.summary);
@@ -76,19 +71,7 @@ export default function ReportsPage() {
     }, [dateRange, storeId]);
 
 
-    // Date Presets
-    const setPreset = (type: 'today' | 'yesterday' | 'week' | 'month') => {
-        const today = new Date();
-        if (type === 'today') setDateRange({ from: today, to: today });
-        else if (type === 'yesterday') {
-            const y = subDays(today, 1);
-            setDateRange({ from: y, to: y });
-        } else if (type === 'week') {
-            setDateRange({ from: startOfWeek(today, { weekStartsOn: 1 }), to: today });
-        } else if (type === 'month') {
-            setDateRange({ from: startOfMonth(today), to: today });
-        }
-    }
+    // Date Presets removed, handled by DateRangePicker
 
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
@@ -108,49 +91,10 @@ export default function ReportsPage() {
                     </Select>
 
                     {/* Date Picker */}
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-[240px] justify-start text-left font-normal",
-                                    !dateRange && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (
-                                    dateRange.to ? (
-                                        <>
-                                            {format(dateRange.from, "d MMM", { locale: tr })} -{" "}
-                                            {format(dateRange.to, "d MMM", { locale: tr })}
-                                        </>
-                                    ) : (
-                                        format(dateRange.from, "PPP", { locale: tr })
-                                    )
-                                ) : (
-                                    <span>Tarih Seç</span>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                            <div className="p-2 border-b flex gap-2">
-                                <Button size="sm" variant="ghost" onClick={() => setPreset('today')}>Bugün</Button>
-                                <Button size="sm" variant="ghost" onClick={() => setPreset('yesterday')}>Dün</Button>
-                                <Button size="sm" variant="ghost" onClick={() => setPreset('week')}>Bu Hafta</Button>
-                                <Button size="sm" variant="ghost" onClick={() => setPreset('month')}>Bu Ay</Button>
-                            </div>
-                            <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={dateRange?.from}
-                                selected={dateRange}
-                                onSelect={(range: any) => {
-                                    if (range?.from) setDateRange({ from: range.from, to: range.to || range.from })
-                                }}
-                                numberOfMonths={2}
-                            />
-                        </PopoverContent>
-                    </Popover>
+                    <DateRangePicker
+                        dateRange={dateRange}
+                        onDateRangeChange={setDateRange}
+                    />
                 </div>
             </div>
 

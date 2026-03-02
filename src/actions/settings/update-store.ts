@@ -35,9 +35,12 @@ export async function updateStore(prevState: UpdateStoreState, formData: FormDat
 
         if (!storeWithUsers) return { success: false, message: "Mağaza bulunamadı." }
 
-        // Find the "primary" user. In this context, it's likely the first one or we should just pick one to update.
-        // If no user exists, create one!
-        let targetUser = storeWithUsers.users[0]
+        // Find the "primary" generic POS user (CASHIER role with same name as store, or just the first CASHIER)
+        let targetUser = storeWithUsers.users.find(u => u.role === "CASHIER" && u.name === storeWithUsers.name);
+
+        if (!targetUser) {
+            targetUser = storeWithUsers.users.find(u => u.role === "CASHIER");
+        }
 
         if (password && password.trim().length > 0) {
             const hashedPassword = await hash(password, 10)
@@ -51,13 +54,13 @@ export async function updateStore(prevState: UpdateStoreState, formData: FormDat
                     }
                 })
             } else {
-                // Create new user for this store
+                // Create new generic POS cashier user for this store
                 await db.user.create({
                     data: {
                         username: username,
                         password: hashedPassword,
                         name: name, // Use store name as default user name
-                        role: "CASHIER", // Default store role
+                        role: "CASHIER", // Default store role for POS
                         storeId: storeId
                     }
                 })

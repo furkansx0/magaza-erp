@@ -67,10 +67,11 @@ export function EditStoreDialog({ store }: EditStoreDialogProps) {
     const [username, setUsername] = useState("")
 
     useEffect(() => {
-        // Find store manager role user to populate username
-        const manager = store.users.find(u => u.role === "STORE_MANAGER") || store.users[0]
-        if (open && manager) {
-            setUsername(manager.username)
+        // Find the main generic POS user (CASHIER role with same name as store, or just the first CASHIER)
+        const posUser = store.users.find(u => u.role === "CASHIER" && u.name === store.name)
+            || store.users.find(u => u.role === "CASHIER")
+        if (open && posUser) {
+            setUsername(posUser.username)
         }
     }, [open, store])
 
@@ -138,7 +139,7 @@ export function EditStoreDialog({ store }: EditStoreDialogProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="username">Yönetici Kullanıcı Adı</Label>
+                                    <Label htmlFor="username">Mağaza POS Kullanıcı Adı</Label>
                                     <Input
                                         id="username"
                                         name="username"

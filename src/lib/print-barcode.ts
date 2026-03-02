@@ -34,7 +34,21 @@ export async function printBarcode(variant: {
 
     // Kullanıcının belirttiği tam PPLA şablonu
     let raw_data = `<STX>L\nD11\n`;
-    raw_data += `192200000890003${sku}\n`;
+
+    // SKU'yu 15 karakterlik parçalara bölelim
+    const skuChunks = [];
+    for (let i = 0; i < sku.length; i += 15) {
+        skuChunks.push(sku.substring(i, i + 15));
+    }
+
+    // Her bir parçayı ayrı metin satırı olarak ekle (Y ekseni 20 nokta aşağı kaydırılarak)
+    let startY = 89;
+    skuChunks.forEach((chunk) => {
+        const yStr = String(startY).padStart(4, '0');
+        raw_data += `1922000${yStr}0003${chunk}\n`;
+        startY -= 20;
+    });
+
     raw_data += `193300000860154${beden}\n`;
     raw_data += `192200000310144${sezon}\n`;
     raw_data += `192200000510140${renk}\n`;

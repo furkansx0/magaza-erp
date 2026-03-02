@@ -1,18 +1,14 @@
 ﻿"use client"
 
 import * as React from "react"
-import { format, startOfDay, endOfDay } from "date-fns"
+import { format, startOfMonth } from "date-fns"
 import { tr } from "date-fns/locale"
 import * as XLSX from "xlsx"
-import { Calendar as CalendarIcon, Store as StoreIcon, Download, FileText, Search } from "lucide-react"
+import { Store as StoreIcon, Download, FileText, Search } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
+import { DateRangePicker } from "@/components/reporting/date-range-picker"
+import { DateRangeType } from "@/actions/settings/store-reporting-actions"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
@@ -22,10 +18,10 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 
 export default function ActivityReportPage() {
-    const [date, setDate] = React.useState<Date | undefined>(new Date())
-    const [dateRange, setDateRange] = React.useState<{ from: Date, to: Date }>({
-        from: startOfDay(new Date()),
-        to: endOfDay(new Date())
+    const [dateRange, setDateRange] = React.useState<{ range: DateRangeType, customStart?: Date, customEnd?: Date }>({
+        range: "thisMonth",
+        customStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        customEnd: new Date()
     })
     const [storeId, setStoreId] = React.useState("all")
     const [stores, setStores] = React.useState<{ id: string, name: string }[]>([])
@@ -48,8 +44,8 @@ export default function ActivityReportPage() {
             setLoading(true);
             try {
                 const res = await getActivityReport(
-                    dateRange.from.toISOString(),
-                    dateRange.to.toISOString(),
+                    dateRange.customStart?.toISOString(),
+                    dateRange.customEnd?.toISOString(),
                     storeId
                 );
                 setRows(res.rows);
@@ -121,44 +117,10 @@ export default function ActivityReportPage() {
                     </Select>
 
                     {/* Date Picker */}
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                size="sm"
-                                className={cn(
-                                    "w-[240px] justify-start text-left font-normal h-9",
-                                    !dateRange && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (
-                                    dateRange.to ? (
-                                        <>
-                                            {format(dateRange.from, "d MMM", { locale: tr })} -{" "}
-                                            {format(dateRange.to, "d MMM", { locale: tr })}
-                                        </>
-                                    ) : (
-                                        format(dateRange.from, "PPP", { locale: tr })
-                                    )
-                                ) : (
-                                    <span>Tarih Seç</span>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                            <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={dateRange?.from}
-                                selected={dateRange}
-                                onSelect={(range: any) => {
-                                    if (range?.from) setDateRange({ from: range.from, to: range.to || range.from })
-                                }}
-                                numberOfMonths={2}
-                            />
-                        </PopoverContent>
-                    </Popover>
+                    <DateRangePicker
+                        dateRange={dateRange}
+                        onDateRangeChange={setDateRange}
+                    />
 
                     <Button variant="outline" size="sm" onClick={handleExport} className="h-9">
                         <Download className="mr-2 h-4 w-4" /> Excel

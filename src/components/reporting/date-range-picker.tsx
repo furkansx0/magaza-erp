@@ -124,6 +124,8 @@ export function DateRangePicker({ dateRange, onDateRangeChange, className }: Dat
         }
     }
 
+    const startInputRef = React.useRef<HTMLInputElement>(null)
+
     return (
         <div className={cn("grid gap-2", className)}>
             <Popover open={open} onOpenChange={setOpen}>
@@ -140,17 +142,26 @@ export function DateRangePicker({ dateRange, onDateRangeChange, className }: Dat
                         {getDisplayText()}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-4 rounded-xl shadow-lg border-2 border-slate-900 bg-white" align="end">
-                    <div className="flex flex-col space-y-3">
+                <PopoverContent
+                    className="w-[260px] p-3 rounded-lg shadow-lg border border-slate-300 bg-white"
+                    align="end"
+                    onOpenAutoFocus={(e) => {
+                        e.preventDefault();
+                        // setTimeout ensures the popover is fully rendered before focusing
+                        setTimeout(() => startInputRef.current?.focus(), 10);
+                    }}
+                >
+                    <div className="flex flex-col space-y-2">
                         {/* PRESENTS */}
-                        <div className="flex flex-col gap-2 pb-5 border-b-2 border-gray-100">
+                        <div className="flex flex-col gap-1 pb-3 border-b border-gray-100">
                             {presets.map((preset) => (
                                 <Button
                                     key={preset.value}
                                     variant="outline"
+                                    size="sm"
                                     onClick={() => handlePresetSelect(preset)}
                                     className={cn(
-                                        "w-full justify-center font-bold tracking-wider transition-all h-11 border-2 text-md",
+                                        "w-full justify-center font-semibold tracking-wide transition-all h-8 text-xs",
                                         dateRange.range === preset.value
                                             ? "bg-slate-900 text-white border-slate-900 hover:bg-black hover:text-white"
                                             : "border-slate-300 hover:border-slate-800 text-slate-800 bg-white"
@@ -162,13 +173,14 @@ export function DateRangePicker({ dateRange, onDateRangeChange, className }: Dat
                         </div>
 
                         {/* CUSTOM RANGE */}
-                        <div className="flex flex-col gap-3 pt-2">
-                            <div className="flex flex-col gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-200">
+                        <div className="flex flex-col gap-2 pt-1">
+                            <div className="flex flex-col gap-2 p-3 bg-slate-50 rounded-md border border-slate-200">
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider px-1">Tarih Başlangıcı</Label>
+                                    <Label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider px-1">Tarih Başlangıcı</Label>
                                     <Input
-                                        placeholder="../(o anki ay/o yıl)"
-                                        className="h-10 font-bold text-center border-2 border-slate-300 focus-visible:ring-slate-900 focus-visible:ring-offset-0 focus-visible:border-slate-900"
+                                        ref={startInputRef}
+                                        placeholder="../(ay/yıl)"
+                                        className="h-8 text-sm font-semibold text-center border-slate-300 focus-visible:ring-slate-900 focus-visible:ring-offset-0 focus-visible:border-slate-900"
                                         value={startInput}
                                         onChange={(e) => setStartInput(e.target.value)}
                                         onKeyDown={handleStartKeyDown}
@@ -177,31 +189,18 @@ export function DateRangePicker({ dateRange, onDateRangeChange, className }: Dat
                                 </div>
 
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider px-1">Tarih Bitişi</Label>
+                                    <Label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider px-1">Tarih Bitişi</Label>
                                     <Input
                                         ref={endInputRef}
-                                        placeholder="../(o anki ay/o yıl)"
-                                        className="h-10 font-bold text-center border-2 border-slate-300 focus-visible:ring-slate-900 focus-visible:ring-offset-0 focus-visible:border-slate-900"
+                                        placeholder="../(ay/yıl)"
+                                        className="h-8 text-sm font-semibold text-center border-slate-300 focus-visible:ring-slate-900 focus-visible:ring-offset-0 focus-visible:border-slate-900"
                                         value={endInput}
                                         onChange={(e) => setEndInput(e.target.value)}
                                         onKeyDown={handleEndKeyDown}
                                         onBlur={() => setEndInput(autocompleteDate(endInput))}
                                     />
                                 </div>
-                                <Button
-                                    size="sm"
-                                    className="w-full mt-2 h-10 bg-slate-900 text-white font-bold hover:bg-black shadow-md border-b-4 border-black active:border-b-0 active:translate-y-1 transition-all"
-                                    onClick={() => handleApplyCustom(
-                                        startInput.includes(".") ? startInput : autocompleteDate(startInput),
-                                        endInput.includes(".") ? endInput : autocompleteDate(endInput)
-                                    )}
-                                >
-                                    Filtrele
-                                </Button>
                             </div>
-                            <p className="text-[10px] text-slate-400 text-center font-medium">
-                                İpucu: Sadece "15" yazıp Enter'a basabilirsiniz.
-                            </p>
                         </div>
                     </div>
                 </PopoverContent>
