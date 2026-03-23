@@ -227,8 +227,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                     total += qty
                 })
                 row.stockTotal = total
-                const saleItems = (v as any).saleItems || []
-                row.totalSold = saleItems.reduce((acc: number, item: any) => acc + item.quantity, 0)
                 allVariants.push(row)
             })
         })
@@ -246,7 +244,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                 } else {
                     const g = groups.get(key)!;
                     g.stockTotal += v.stockTotal;
-                    g.totalSold += v.totalSold;
                     g.transferQuantity = (g.transferQuantity || 0) + (v.transferQuantity || 0);
                     stores.forEach(s => { g[`stock_${s.id}`] += v[`stock_${s.id}`] });
                 }
@@ -276,7 +273,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                     size: "-",
                     depth: 0,
                     stockTotal: 0,
-                    totalSold: 0,
                     transferQuantity: 0
                 };
 
@@ -284,7 +280,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                 stores.forEach(s => modelRow[`stock_${s.id}`] = 0);
                 productVariants.forEach(v => {
                     modelRow.stockTotal += v.stockTotal;
-                    modelRow.totalSold += v.totalSold;
                     modelRow.transferQuantity = (modelRow.transferQuantity || 0) + (v.transferQuantity || 0);
                     stores.forEach(s => modelRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
                 });
@@ -312,14 +307,12 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                             depth: 1,
                             parentId: p.id,
                             stockTotal: 0,
-                            totalSold: 0,
                             transferQuantity: 0
                         };
                         // Aggregate Color totals
                         stores.forEach(s => colorRow[`stock_${s.id}`] = 0);
                         vars.forEach(v => {
                             colorRow.stockTotal += v.stockTotal;
-                            colorRow.totalSold += v.totalSold;
                             colorRow.transferQuantity = (colorRow.transferQuantity || 0) + (v.transferQuantity || 0);
                             stores.forEach(s => colorRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
                         });
@@ -385,9 +378,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                 if (sortOption === "stock_asc") return a.stockTotal - b.stockTotal
                 if (sortOption === "stock_desc") return b.stockTotal - a.stockTotal
 
-                if (sortOption === "sold_asc") return (a.totalSold || 0) - (b.totalSold || 0)
-                if (sortOption === "sold_desc") return (b.totalSold || 0) - (a.totalSold || 0)
-
                 if (sortOption === "price_in_asc") return a.purchasePrice - b.purchasePrice
                 if (sortOption === "price_in_desc") return b.purchasePrice - a.purchasePrice
 
@@ -435,8 +425,7 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
         priceIn: 75,
         priceOut: 75,
         stockIn: 55, // Store columns base width
-        totalStock: 65,
-        totalSold: 65
+        totalStock: 65
     });
 
     const resizingRef = React.useRef<{ col: string, startX: number, startWidth: number } | null>(null);
@@ -509,7 +498,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
             `${colWidths.priceOut || 75}px`,
             ...visibleStores.map(s => `${colWidths[`store_${s.id}`] || colWidths.stockIn || 55}px`),
             `${colWidths.totalStock || 65}px`,
-            `${colWidths.totalSold || 65}px`,
             "40px" // Actions Placeholder
         ];
         return sb.join(" ");
@@ -532,8 +520,7 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                 "Sezon": row.season,
                 "Alış Fiyatı": row.purchasePrice,
                 "Satış Fiyatı": row.salePrice,
-                "Toplam Stok": row.stockTotal,
-                "Toplam Satılan": row.totalSold || 0
+                "Toplam Stok": row.stockTotal
             };
             stores.forEach(s => {
                 rowData[s.name] = row[`stock_${s.id}`] || 0;
@@ -600,8 +587,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                             <SelectItem value="date_oldest">Tarih (En Eski)</SelectItem>
                             <SelectItem value="stock_desc">Stok (Çoktan Aza)</SelectItem>
                             <SelectItem value="stock_asc">Stok (Azdan Çoğa)</SelectItem>
-                            <SelectItem value="sold_desc">En Çok Satılan</SelectItem>
-                            <SelectItem value="sold_asc">En Az Satılan</SelectItem>
                             <SelectItem value="price_out_desc">Fiyat (Pahalıdan Ucuza)</SelectItem>
                             <SelectItem value="price_out_asc">Fiyat (Ucuzdan Pahalıya)</SelectItem>
                             <SelectItem value="margin_desc">En Yüksek Kar Marjı</SelectItem>
@@ -722,14 +707,9 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                                 />
                             </div>
                         ))}
-
-                        <div className="p-2 border-r text-center font-bold relative group h-full flex items-center justify-center">
-                            T. Giriş
+                         <div className="p-2 border-r text-center font-bold relative group h-full flex items-center justify-center">
+                            T. Stok
                             <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors z-10" onMouseDown={(e) => startResize(e, 'totalStock')} />
-                        </div>
-                        <div className="p-2 border-r text-center font-bold relative group h-full flex items-center justify-center">
-                            Satılan
-                            <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors z-10" onMouseDown={(e) => startResize(e, 'totalSold')} />
                         </div>
                         <div className="p-2 border-r text-center"></div>
                     </div>
@@ -778,7 +758,6 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                                     </div>
                                 ))}
                                 <div className="px-2 border-r h-full flex items-center justify-center font-mono font-bold text-gray-700 overflow-hidden text-ellipsis">{row.stockTotal}</div>
-                                <div className="px-2 border-r h-full flex items-center justify-center font-mono font-bold text-gray-700 overflow-hidden text-ellipsis">{row.totalSold || 0}</div>
                                 <div className="px-2 border-r h-full flex items-center justify-center">
                                     {/* Actions Removed */}
                                 </div>

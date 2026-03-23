@@ -246,8 +246,6 @@ export function ProductGrid(props: ProductGridProps) {
                     total += qty
                 })
                 row.stockTotal = total
-                const saleItems = (v as any).saleItems || []
-                row.totalSold = saleItems.reduce((acc: number, item: any) => acc + item.quantity, 0)
                 allVariants.push(row)
             })
         })
@@ -265,7 +263,6 @@ export function ProductGrid(props: ProductGridProps) {
                 } else {
                     const g = groups.get(key)!;
                     g.stockTotal += v.stockTotal;
-                    g.totalSold += v.totalSold;
                     stores.forEach(s => { g[`stock_${s.id}`] += v[`stock_${s.id}`] });
                 }
             });
@@ -293,15 +290,13 @@ export function ProductGrid(props: ProductGridProps) {
                     color: "(Modeller)",
                     size: "-",
                     depth: 0,
-                    stockTotal: 0,
-                    totalSold: 0
+                    stockTotal: 0
                 };
 
                 // Aggregate totals
                 stores.forEach(s => modelRow[`stock_${s.id}`] = 0);
                 productVariants.forEach(v => {
                     modelRow.stockTotal += v.stockTotal;
-                    modelRow.totalSold += v.totalSold;
                     stores.forEach(s => modelRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
                 });
 
@@ -327,14 +322,12 @@ export function ProductGrid(props: ProductGridProps) {
                             barcode: "-",
                             depth: 1,
                             parentId: p.id,
-                            stockTotal: 0,
-                            totalSold: 0
+                            stockTotal: 0
                         };
                         // Aggregate Color totals
                         stores.forEach(s => colorRow[`stock_${s.id}`] = 0);
                         vars.forEach(v => {
                             colorRow.stockTotal += v.stockTotal;
-                            colorRow.totalSold += v.totalSold;
                             stores.forEach(s => colorRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
                         });
 
@@ -399,9 +392,6 @@ export function ProductGrid(props: ProductGridProps) {
                 if (sortOption === "stock_asc") return a.stockTotal - b.stockTotal
                 if (sortOption === "stock_desc") return b.stockTotal - a.stockTotal
 
-                if (sortOption === "sold_asc") return (a.totalSold || 0) - (b.totalSold || 0)
-                if (sortOption === "sold_desc") return (b.totalSold || 0) - (a.totalSold || 0)
-
                 if (sortOption === "price_in_asc") return a.purchasePrice - b.purchasePrice
                 if (sortOption === "price_in_desc") return b.purchasePrice - a.purchasePrice
 
@@ -436,7 +426,6 @@ export function ProductGrid(props: ProductGridProps) {
         else setSelectedIds(prev => [...prev, id])
     }
 
-    // Reuse Handlers (bulkArchive, bulkPrice, bulkTransfer) - logic assumed same
     // Reuse Handlers (bulkArchive, bulkPrice, bulkTransfer) - logic assumed same
     const handleBulkArchive = async () => {
         if (selectedIds.length === 0) return toast.error("Ürün seçiniz");
@@ -563,8 +552,7 @@ export function ProductGrid(props: ProductGridProps) {
         priceIn: 75,
         priceOut: 75,
         stockIn: 55, // Store columns base width
-        totalStock: 65,
-        totalSold: 65
+        totalStock: 65
     });
 
     const resizingRef = React.useRef<{ col: string, startX: number, startWidth: number } | null>(null);
@@ -578,7 +566,6 @@ export function ProductGrid(props: ProductGridProps) {
     };
 
     const onMouseMove = (e: MouseEvent) => {
-        if (!resizingRef.current) return;
         if (!resizingRef.current) return;
         const diff = e.clientX - resizingRef.current.startX;
         const newWidth = Math.max(30, resizingRef.current.startWidth + diff); // Min width 30px
@@ -636,7 +623,6 @@ export function ProductGrid(props: ProductGridProps) {
             `${colWidths.priceOut}px`,
             ...visibleStores.map(s => `${colWidths[`store_${s.id}`] || colWidths.stockIn}px`),
             `${colWidths.totalStock}px`,
-            `${colWidths.totalSold}px`,
             "40px" // Actions
         ];
         return sb.join(" ");
@@ -659,8 +645,7 @@ export function ProductGrid(props: ProductGridProps) {
                 "Sezon": row.season,
                 "Alış Fiyatı": row.purchasePrice,
                 "Satış Fiyatı": row.salePrice,
-                "Toplam Stok": row.stockTotal,
-                "Toplam Satılan": row.totalSold || 0
+                "Toplam Stok": row.stockTotal
             };
             stores.forEach(s => {
                 rowData[s.name] = row[`stock_${s.id}`] || 0;
@@ -703,13 +688,6 @@ export function ProductGrid(props: ProductGridProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {/* Product Actions Component integrated here via children or just render logic if we move it */}
-                        {/* Since ProductActions was separate, we need to bring "Add Product" functionality here. 
-                             For now, let's assume we pass ProductActions as a prop or replicate the button. 
-                             To be safe and clean, let's import ProductWizard trigger here or keep it simple. 
-                             User said "Don't remove functionality". ProductActions had "New Product" button.
-                             We will add a "New Product" button here that triggers the Wizard.
-                          */}
                         <Button onClick={() => {
                             setWizardMode("create");
                             setWizardData(null);
@@ -744,8 +722,6 @@ export function ProductGrid(props: ProductGridProps) {
                             <SelectItem value="date_oldest">Tarih (En Eski)</SelectItem>
                             <SelectItem value="stock_desc">Stok (Çoktan Aza)</SelectItem>
                             <SelectItem value="stock_asc">Stok (Azdan Çoğa)</SelectItem>
-                            <SelectItem value="sold_desc">En Çok Satılan</SelectItem>
-                            <SelectItem value="sold_asc">En Az Satılan</SelectItem>
                             <SelectItem value="price_out_desc">Fiyat (Pahalıdan Ucuza)</SelectItem>
                             <SelectItem value="price_out_asc">Fiyat (Ucuzdan Pahalıya)</SelectItem>
                             <SelectItem value="margin_desc">En Yüksek Kar Marjı</SelectItem>
@@ -758,7 +734,6 @@ export function ProductGrid(props: ProductGridProps) {
 
                     <div className="h-4 w-[1px] bg-gray-300 mx-1" />
 
-                    {/* Filters Row - GRID Layout */}
                     {/* Filters Row - FLEX Wrap Layout */}
                     <div className="flex flex-wrap gap-1 flex-1 w-full items-center">
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Kategori" options={uniqueCategories} selected={selectedCategories} onChange={setSelectedCategories} /></div>
@@ -895,12 +870,8 @@ export function ProductGrid(props: ProductGridProps) {
                         ))}
 
                         <div className="p-2 border-r text-center font-bold relative group h-full flex items-center justify-center">
-                            T. Giriş
+                            T. Stok
                             <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors z-10" onMouseDown={(e) => startResize(e, 'totalStock')} />
-                        </div>
-                        <div className="p-2 border-r text-center font-bold relative group h-full flex items-center justify-center">
-                            Satılan
-                            <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors z-10" onMouseDown={(e) => startResize(e, 'totalSold')} />
                         </div>
                         <div className="p-2 border-r text-center"></div>
                     </div>
@@ -946,7 +917,6 @@ export function ProductGrid(props: ProductGridProps) {
                                     </div>
                                 ))}
                                 <div className="px-2 border-r h-full flex items-center justify-center font-mono font-bold text-gray-700 overflow-hidden text-ellipsis">{row.stockTotal}</div>
-                                <div className="px-2 border-r h-full flex items-center justify-center font-mono font-bold text-gray-700 overflow-hidden text-ellipsis">{row.totalSold || 0}</div>
                                 <div className="px-2 border-r h-full flex items-center justify-center">
                                     <div className="flex justify-center gap-1">
                                         <Button
