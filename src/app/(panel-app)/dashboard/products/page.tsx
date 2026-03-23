@@ -1,6 +1,5 @@
-﻿import { db } from "@/lib/db";
-import { ProductGrid } from "@/components/products/product-grid-view";
-import { ProductActions } from "@/components/products/product-actions";
+import { db } from "@/lib/db";
+import { ProductListClient } from "@/components/products/product-list-client";
 import { getProductsWithFilters, getFilterFacets } from "@/actions/inventory/product-query-actions";
 
 type SearchParams = {
@@ -26,7 +25,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     const seasons = typeof resolvedParams.season === 'string' ? [resolvedParams.season] : resolvedParams.season;
     const materials = typeof resolvedParams.material === 'string' ? [resolvedParams.material] : resolvedParams.material;
 
-    // Fetch Data
+    // Fetch Data for Initial Load (SSR)
     const { data: products, metadata } = await getProductsWithFilters({
         page,
         limit,
@@ -53,13 +52,13 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-gray-100">
-            {/* Full Width Grid Content directly - maximizing space */}
             <div className="flex-1 min-w-0 p-1">
-                <ProductGrid
-                    products={products as any}
+                {/* SWR Client Wrapper with Fallback Data */}
+                <ProductListClient
+                    initialProducts={products as any}
+                    initialTotal={metadata?.total || 0}
                     stores={stores}
                     facets={facets as any}
-                    totalCount={metadata?.total || 0} // Passing total count
                 />
             </div>
         </div>

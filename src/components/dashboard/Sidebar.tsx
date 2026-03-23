@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { preload } from "swr"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -164,19 +165,29 @@ export function Sidebar({ className, userRole, userPermissions, storeId, modules
                         Retail ERP
                     </h2>
                     <div className="space-y-1">
-                        {routes.map((route) => (
-                            <Button
-                                key={route.href}
-                                variant={route.active ? "secondary" : "ghost"}
-                                className="w-full justify-start"
-                                asChild
-                            >
-                                <Link href={route.href}>
-                                    <route.icon className="mr-2 h-4 w-4" />
-                                    {route.label}
-                                </Link>
-                            </Button>
-                        ))}
+                        {routes.map((route) => {
+                            const handlePrefetch = () => {
+                                if (route.id === "products") {
+                                    // Prefetch products with default filters (limit: 1000000 as used in page)
+                                    preload("/api/products?limit=1000000", (url: string) => fetch(url).then(res => res.json()))
+                                }
+                            }
+
+                            return (
+                                <Button
+                                    key={route.href}
+                                    variant={route.active ? "secondary" : "ghost"}
+                                    className="w-full justify-start"
+                                    asChild
+                                    onMouseEnter={handlePrefetch}
+                                >
+                                    <Link href={route.href}>
+                                        <route.icon className="mr-2 h-4 w-4" />
+                                        {route.label}
+                                    </Link>
+                                </Button>
+                            )
+                        })}
                     </div>
                 </div>
             </div>

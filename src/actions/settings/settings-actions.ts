@@ -1,8 +1,9 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { cache } from "react"
 
-export async function getSettingByKey(key: string) {
+export const getSettingByKey = cache(async (key: string) => {
     try {
         const setting = await db.systemSetting.findUnique({
             where: { key }
@@ -11,7 +12,7 @@ export async function getSettingByKey(key: string) {
     } catch {
         return null;
     }
-}
+});
 
 export async function initDefaultSettings() {
     try {
