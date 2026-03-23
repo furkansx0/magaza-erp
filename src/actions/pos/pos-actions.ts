@@ -1,26 +1,11 @@
-﻿"use server"
+"use server"
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createAuditLog } from "@/actions/settings/audit-actions";
 
-// Lightweight Product type for POS
-export type PosProduct = {
-    id: string;
-    name: string;
-    variantId: string;
-    barcode: string;
-    sku: string | null;
-    price: number;
-    stock: number;
-    color: string | null;
-    size: string | null;
-    modelName: string;
-    category: string | null;
-    brand: string | null;
-}
-
+import { PosProduct, CartItem, PaymentInput } from "@/types/pos";
 export async function searchPosProducts(query: string, storeId?: string, includeOutOfStock?: boolean): Promise<PosProduct[]> {
     if (!query || query.length < 2) return [];
 
@@ -154,20 +139,6 @@ export async function createQuickCustomer(name: string, phone: string) {
 }
 
 // --- SALE PROCESSING ---
-
-export type CartItem = {
-    variantId: string;
-    quantity: number;
-    price: number;
-    salesRepId?: string; // Added per-item sales rep
-}
-
-export type PaymentInput = {
-    method: "CASH" | "CREDIT_CARD" | "GIFT_CARD";
-    amount: number;
-    referenceCode?: string; // For Gift Card Code
-}
-
 export async function processSale(data: {
     items: CartItem[];
     payments: PaymentInput[];
@@ -275,30 +246,43 @@ export async function processSale(data: {
                 }
             });
 
-            // C. Update Stocks
+            // C. Update Stocks — Atomic "compare-and-update" (SELECT FOR UPDATE muadili)
+            // Prisma'da $queryRaw ile SELECT FOR UPDATE kullanmak yerine,
+            // PostgreSQL'in atomic UPDATE...WHERE quantity >= required desenini kullanıyoruz.
+            // Bu yaklaşım: önce oku → kontrol et → güncelle üçlüsündeki race window'u tamamen kapatır.
             for (const item of data.items) {
-                const stockRecord = await tx.stock.findUnique({
+                // Tek atomik SQL:
+                // UPDATE "Stock" SET quantity = quantity - {n}
+                // WHERE "variantId" = x AND "storeId" = y AND quantity >= {n}
+                // Eğer başka bir kasiyer stoğu tükettiyse, bu UPDATE 0 satır etkiler → hata.
+                const affected = await tx.stock.updateMany({
                     where: {
-                        variantId_storeId: {
-                            variantId: item.variantId,
-                            storeId: storeId
-                        }
+                        variantId: item.variantId,
+                        storeId: storeId,
+                        quantity: { gte: item.quantity } // ← Kilit şart: yeterli stok varsa güncelle
+                    },
+                    data: {
+                        quantity: { decrement: item.quantity }
                     }
                 });
 
-                if (stockRecord) {
-                    await tx.stock.update({
-                        where: { id: stockRecord.id },
-                        data: { quantity: { decrement: item.quantity } }
+                if (affected.count === 0) {
+                    // Güncelleme 0 satır etkiledi: ya kayıt yok ya da stok yetersiz.
+                    // Hangisi olduğunu anlamak için mevcut stoku oku (sadece hata mesajı için).
+                    const stockRecord = await tx.stock.findUnique({
+                        where: { variantId_storeId: { variantId: item.variantId, storeId } },
+                        select: { quantity: true }
                     });
-                } else {
-                    await tx.stock.create({
-                        data: {
-                            storeId: storeId,
-                            variantId: item.variantId,
-                            quantity: -item.quantity
-                        }
-                    });
+
+                    if (!stockRecord) {
+                        throw new Error(
+                            `Stok kaydı bulunamadı: Bu ürün mağazada kayıtlı değil. Lütfen stok girişi yapın.`
+                        );
+                    }
+                    throw new Error(
+                        `Yetersiz stok: ${item.quantity} adet istendi, mevcut stok ${stockRecord.quantity} adet. ` +
+                        `(Başka bir kasiyer bu ürünü satmış olabilir)`
+                    );
                 }
             }
 

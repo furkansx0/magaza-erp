@@ -1,7 +1,8 @@
-﻿"use client"
+"use client"
 
-import { useEffect, useState } from "react";
-import { DateRangeType, getStoreStaffReport } from "@/actions/settings/store-reporting-actions";
+import type { DateRangeType } from '@/types/actions';
+﻿import { useEffect, useState } from "react";
+import { getStoreStaffReport } from '@/actions/settings/store-reporting-actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

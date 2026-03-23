@@ -1,5 +1,6 @@
-﻿"use client"
+"use client"
 
+import type { DateRangeType } from '@/types/actions';
 import * as React from "react"
 import { format, startOfMonth } from "date-fns"
 import { tr } from "date-fns/locale"
@@ -8,12 +9,13 @@ import { Store as StoreIcon, Download, FileText, Search } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { DateRangePicker } from "@/components/reporting/date-range-picker"
-import { DateRangeType } from "@/actions/settings/store-reporting-actions"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
-import { getStores } from "@/actions/settings/store-actions"
-import { getActivityReport, ActivityRow } from "@/actions/settings/activity-actions"
+import { getStores } from '@/actions/settings/store-actions'
+import { getActivityReport } from '@/actions/settings/activity-actions'
+import type { ActivityRow } from '@/types/actions'
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 

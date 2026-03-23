@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format } from "date-fns"
 import { tr } from "date-fns/locale"
 
-export interface ReportSummary {
+interface ReportSummary {
     totalRevenue: number
     totalCost: number
     totalProfit: number
@@ -12,7 +12,7 @@ export interface ReportSummary {
     averageBasket: number
 }
 
-export interface ChartData {
+interface ChartData {
     date: string
     revenue: number
     profit: number

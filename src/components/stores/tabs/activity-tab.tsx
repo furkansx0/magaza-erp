@@ -1,7 +1,9 @@
-﻿"use client"
+"use client"
 
+import type { DateRangeType } from '@/types/actions';
 import { useEffect, useState } from "react";
-import { DateRangeType, getStoreActivityReport, ActivityTypeFilter } from "@/actions/settings/store-reporting-actions";
+import { getStoreActivityReport } from '@/actions/settings/store-reporting-actions';
+import type { ActivityTypeFilter } from '@/types/actions';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

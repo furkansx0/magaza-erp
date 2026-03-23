@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 
-export type ValidatedProduct = {
+type ValidatedProduct = {
     variantId: string
     barcode: string
     name: string

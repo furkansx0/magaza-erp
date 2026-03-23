@@ -16,8 +16,10 @@ interface ImportRow {
     "Barkod"?: string;
     "Alış Fiyatı"?: number | string;
     "Satış Fiyatı"?: number | string;
-    [key: string]: any; // Allow dynamic store columns
+    [key: string]: any;
 }
+
+const CHUNK_SIZE = 500; // Her pakette max 500 satır
 
 export async function importProducts(rows: ImportRow[], stores: { id: string, name: string }[]) {
     try {
@@ -29,7 +31,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         let emptyNameRows = 0;
         let validRows: ImportRow[] = [];
 
-        // 1. Pre-filter and Diagnostics
+        // 1. Pre-filter
         for (const row of rows) {
             if (!row["Model Adı"] || String(row["Model Adı"]).trim() === "") {
                 emptyNameRows++;
@@ -38,31 +40,26 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             validRows.push(row);
         }
 
-        // Grouping
+        // 2. Grouping by Model
         const modelGroups = new Map<string, ImportRow[]>();
         let missingBarcodeCount = 0;
 
         for (const row of validRows) {
-            // Create a unique key for grouping
             const key = `${row["Model Adı"]}-${row["Marka"] || ""}-${row["Kategori"] || ""}`;
-
             if (!modelGroups.has(key)) modelGroups.set(key, []);
             modelGroups.get(key)!.push(row);
-
             if (!row["Barkod"] || String(row["Barkod"]).trim() === "") {
                 missingBarcodeCount++;
             }
         }
 
-        // Batch Generate Barcodes with Robust SystemCounter
+        // 3. Batch Generate Barcodes up front (single atomic counter increment)
         let generatedBarcodes: string[] = [];
         if (missingBarcodeCount > 0) {
             const res = await generateNextBarcodes(missingBarcodeCount);
             if (res.success && res.barcodes) {
                 generatedBarcodes = res.barcodes;
             } else {
-                // Determine if fatal or partial?
-                // If it failed completely, we can't assign barcodes.
                 throw new Error(res.error || "Sıralı barkod üretimi başarısız oldu.");
             }
         }
@@ -70,170 +67,172 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         let createdCount = 0;
         let updatedCount = 0;
         let usedBarcodeIndex = 0;
-        let updatedItems: string[] = []; // Track names of updated items
-
+        let updatedItems: string[] = [];
         let newlyCreatedVariants: any[] = [];
 
-        // 2. Process Each Model Group
-        // Increase timeout for large batches
-        await db.$transaction(async (tx) => {
-            for (const [key, groupRows] of modelGroups) {
-                const firstRow = groupRows[0];
+        // 4. Split model groups into chunks of CHUNK_SIZE rows
+        const allEntries = Array.from(modelGroups.entries());
 
-                // Find or Create Model
-                let model = await tx.productModel.findFirst({
-                    where: {
-                        name: firstRow["Model Adı"],
-                        brand: firstRow["Marka"] || null
-                    }
-                });
+        // Build chunk boundaries: each chunk holds groups until cumulative row count >= CHUNK_SIZE
+        const chunks: Array<[string, ImportRow[]][]> = [];
+        let currentChunk: [string, ImportRow[]][] = [];
+        let currentChunkRows = 0;
 
-                if (!model) {
-                    model = await tx.productModel.create({
-                        data: {
-                            name: firstRow["Model Adı"] || "Bilinmeyen Model", // Safe fallback
-                            brand: firstRow["Marka"] || null,
-                            category: firstRow["Kategori"] || null,
-                            season: firstRow["Sezon"] || null,
-                            description: "Excel İçe Aktarım",
-                            gender: "Erkek" // Default
-                        }
-                    });
-                }
+        for (const entry of allEntries) {
+            currentChunk.push(entry);
+            currentChunkRows += entry[1].length;
 
-                // Process Variants for this Model
-                for (const row of groupRows) {
-                    const color = row["Renk"] || "-";
-                    const size = row["Beden"] || "-";
-                    // Improve Auto-SKU Generation to avoid collisions
-                    const simpleSlug = (txt: string) => txt.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().substring(0, 6);
+            if (currentChunkRows >= CHUNK_SIZE) {
+                chunks.push(currentChunk);
+                currentChunk = [];
+                currentChunkRows = 0;
+            }
+        }
+        if (currentChunk.length > 0) chunks.push(currentChunk);
 
-                    const sku = row["Stok Kodu"] || row["SKU"] ||
-                        `${simpleSlug(model.name)}-${simpleSlug(color)}-${size}`.toUpperCase();
+        // 5. Process each chunk in its own transaction (prevents Vercel/Neon timeout)
+        for (const chunk of chunks) {
+            await db.$transaction(async (tx) => {
+                for (const [, groupRows] of chunk) {
+                    const firstRow = groupRows[0];
 
-                    let barcode = row["Barkod"];
-                    // Assign from batch if missing
-                    if (!barcode || String(barcode).trim() === "") {
-                        if (usedBarcodeIndex < generatedBarcodes.length) {
-                            barcode = generatedBarcodes[usedBarcodeIndex];
-                            usedBarcodeIndex++;
-                        } else {
-                            // Should theoretically not happen if batch count matched
-                            barcode = "ERR-" + Math.random().toString(36).substring(7);
-                        }
-                    }
-
-                    // Check if variant exists
-                    let variant = await tx.productVariant.findFirst({
+                    // Find or Create Model
+                    let model = await tx.productModel.findFirst({
                         where: {
-                            OR: [
-                                { barcode: String(barcode) },
-                                { sku: String(sku) }
-                            ]
+                            name: firstRow["Model Adı"],
+                            brand: firstRow["Marka"] || null
                         }
                     });
 
-                    if (variant) {
-                        // Update
-                        await tx.productVariant.update({
-                            where: { id: variant.id },
+                    if (!model) {
+                        model = await tx.productModel.create({
                             data: {
-                                purchasePrice: Number(row["Alış Fiyatı"]) || variant.purchasePrice,
-                                salePrice: Number(row["Satış Fiyatı"]) || variant.salePrice,
+                                name: firstRow["Model Adı"] || "Bilinmeyen Model",
+                                brand: firstRow["Marka"] || null,
+                                category: firstRow["Kategori"] || null,
+                                season: firstRow["Sezon"] || null,
+                                description: "Excel İçe Aktarım",
+                                gender: "Erkek"
                             }
                         });
-                        updatedCount++;
-                        if (updatedItems.length < 5) {
-                            updatedItems.push(`${model.name} (${variant.sku})`);
+                    }
+
+                    // Process Variants
+                    for (const row of groupRows) {
+                        const color = row["Renk"] || "-";
+                        const size = row["Beden"] || "-";
+                        const simpleSlug = (txt: string) => txt.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().substring(0, 6);
+                        const sku = row["Stok Kodu"] || row["SKU"] ||
+                            `${simpleSlug(model.name)}-${simpleSlug(color)}-${size}`.toUpperCase();
+
+                        let barcode = row["Barkod"];
+                        if (!barcode || String(barcode).trim() === "") {
+                            if (usedBarcodeIndex < generatedBarcodes.length) {
+                                barcode = generatedBarcodes[usedBarcodeIndex];
+                                usedBarcodeIndex++;
+                            } else {
+                                barcode = "ERR-" + Math.random().toString(36).substring(7);
+                            }
                         }
-                    } else {
-                        // Create New Variant
-                        variant = await tx.productVariant.create({
-                            data: {
-                                modelId: model.id,
-                                color: color,
-                                size: String(size),
-                                sku: String(sku),
-                                barcode: String(barcode),
-                                purchasePrice: Number(row["Alış Fiyatı"]) || 0,
-                                salePrice: Number(row["Satış Fiyatı"]) || 0,
+
+                        let variant = await tx.productVariant.findFirst({
+                            where: {
+                                OR: [
+                                    { barcode: String(barcode) },
+                                    { sku: String(sku) }
+                                ]
                             }
                         });
-                        createdCount++;
-                        let newVariantTotalStock = 0;
 
-                        // Process Stocks (Dynamic Columns)
-                        for (const store of stores) {
-                            const quantity = Number(row[store.name]);
-                            if (!isNaN(quantity) && quantity > 0) {
-                                newVariantTotalStock += quantity;
-                                const existingStock = await tx.stock.findUnique({
-                                    where: {
-                                        variantId_storeId: {
-                                            variantId: variant.id,
-                                            storeId: store.id
+                        if (variant) {
+                            await tx.productVariant.update({
+                                where: { id: variant.id },
+                                data: {
+                                    purchasePrice: Number(row["Alış Fiyatı"]) || variant.purchasePrice,
+                                    salePrice: Number(row["Satış Fiyatı"]) || variant.salePrice,
+                                }
+                            });
+                            updatedCount++;
+                            if (updatedItems.length < 5) {
+                                updatedItems.push(`${model.name} (${sku})`);
+                            }
+                        } else {
+                            variant = await tx.productVariant.create({
+                                data: {
+                                    modelId: model.id,
+                                    color,
+                                    size: String(size),
+                                    sku: String(sku),
+                                    barcode: String(barcode),
+                                    purchasePrice: Number(row["Alış Fiyatı"]) || 0,
+                                    salePrice: Number(row["Satış Fiyatı"]) || 0,
+                                }
+                            });
+                            createdCount++;
+                            let newVariantTotalStock = 0;
+
+                            for (const store of stores) {
+                                const quantity = Number(row[store.name]);
+                                if (!isNaN(quantity) && quantity > 0) {
+                                    newVariantTotalStock += quantity;
+                                    const existingStock = await tx.stock.findUnique({
+                                        where: {
+                                            variantId_storeId: {
+                                                variantId: variant.id,
+                                                storeId: store.id
+                                            }
                                         }
+                                    });
+
+                                    if (existingStock) {
+                                        await tx.stock.update({
+                                            where: { id: existingStock.id },
+                                            data: { quantity }
+                                        });
+                                    } else {
+                                        await tx.stock.create({
+                                            data: {
+                                                variantId: variant.id,
+                                                storeId: store.id,
+                                                quantity
+                                            }
+                                        });
                                     }
-                                });
-
-                                if (existingStock) {
-                                    await tx.stock.update({
-                                        where: { id: existingStock.id },
-                                        data: { quantity: quantity }
-                                    });
-                                } else {
-                                    await tx.stock.create({
-                                        data: {
-                                            variantId: variant.id,
-                                            storeId: store.id,
-                                            quantity: quantity
-                                        }
-                                    });
                                 }
                             }
-                        }
 
-                        // Stok bilgisiyle birlikte push et
-                        newlyCreatedVariants.push({
-                            ...variant,
-                            season: model.season,
-                            totalStock: newVariantTotalStock
-                        });
+                            newlyCreatedVariants.push({
+                                ...variant,
+                                season: model.season,
+                                totalStock: newVariantTotalStock
+                            });
+                        }
                     }
-                } // for groupRows
-            } // for modelGroups
-        }, {
-            maxWait: 20000,
-            timeout: 60000
-        });
+                }
+            }, {
+                maxWait: 10000,   // Her chunk için 10s bekleme
+                timeout: 30000    // Her chunk için 30s limit (Vercel safe)
+            });
+        }
 
         revalidatePath("/dashboard/products");
 
-        // Detailed Message
-        let msg = `✅ İşlem Tamamlandı!\n\n` +
+        const msg = `✅ İşlem Tamamlandı!\n\n` +
+            `📦 Paket Sayısı: ${chunks.length}\n` +
             `📥 Toplam Gelen: ${totalRows}\n` +
             `✨ Yeni Eklenen: ${createdCount}\n` +
-            `🔄 Güncellenen (Mükerrer/Mevcut): ${updatedCount}\n` +
+            `🔄 Güncellenen: ${updatedCount}\n` +
             `🚫 Atlanan (İsmi Yok): ${emptyNameRows}`;
-
-        if (updatedCount > 0 && updatedItems.length > 0) {
-            msg += `\n\n📝 Örnek Mevcut Kayıtlar:\n- ${updatedItems.slice(0, 3).join("\n- ")}`;
-            if (updatedItems.length > 3) msg += `\n... ve ${updatedItems.length - 3} diğer kayıt.`;
-        }
 
         return {
             success: true,
             message: msg,
             newVariants: newlyCreatedVariants,
-            diagnostics: {
-                total: totalRows,
-                valid: validRows.length,
-                skipped: emptyNameRows
-            }
+            diagnostics: { total: totalRows, valid: validRows.length, skipped: emptyNameRows }
         };
 
     } catch (error: any) {
         console.error("Bulk Import Error:", error);
-        return { success: false, error: "İçe aktarım hatası: " + error.message };
+        return { success: false, error: "İçe aktarım hatası: " + error.message }
     }
 }

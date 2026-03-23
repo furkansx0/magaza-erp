@@ -1,6 +1,7 @@
-﻿"use client"
+"use client"
 
-import * as React from "react"
+import type { DateRangeType } from '@/types/actions';
+﻿import * as React from "react"
 import { format, subDays, startOfWeek, startOfMonth, parse, isValid } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { tr } from "date-fns/locale"
@@ -14,7 +15,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { DateRangeType } from "@/actions/settings/store-reporting-actions"
+
 
 interface DateRangePickerProps {
     dateRange: {

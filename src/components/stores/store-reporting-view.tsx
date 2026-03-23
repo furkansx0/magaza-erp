@@ -1,13 +1,14 @@
-﻿"use client"
+"use client"
 
-import { useState } from "react";
+import type { DateRangeType } from '@/types/actions';
+﻿import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangePicker } from "@/components/reporting/date-range-picker";
 import { DashboardTab } from "./tabs/dashboard-tab";
 import { ActivityTab } from "./tabs/activity-tab";
 import { FinanceTab } from "./tabs/finance-tab";
 import { StaffTab } from "./tabs/staff-tab";
-import { DateRangeType } from "@/actions/settings/store-reporting-actions";
+;
 
 interface StoreReportingViewProps {
     storeId: string;

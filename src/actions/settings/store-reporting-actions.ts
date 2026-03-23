@@ -3,7 +3,7 @@
 import { db } from "@/lib/db"
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, subMonths } from "date-fns"
 
-export type DateRangeType = "today" | "yesterday" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "last6Months" | "last30Days" | "custom";
+type DateRangeType = "today" | "yesterday" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth" | "last6Months" | "last30Days" | "custom";
 
 interface DateRangeParams {
     range: DateRangeType;
@@ -135,7 +135,7 @@ export async function getStoreDashboardStats(storeId: string) {
 
 // --- TAB 2: ACTIVITY REPORT ---
 
-export type ActivityTypeFilter = "ALL" | "SALE" | "EXCHANGE" | "RETURN";
+type ActivityTypeFilter = "ALL" | "SALE" | "EXCHANGE" | "RETURN";
 
 export async function getStoreActivityReport(
     storeId: string,

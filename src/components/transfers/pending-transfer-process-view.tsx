@@ -1,6 +1,7 @@
-﻿
 "use client"
 
+import type { ProductWithVariants } from '@/types/actions';
+﻿
 import React, { useEffect, useState, useRef } from "react"
 import { StockTransfer, StockTransferItem, ProductVariant, ProductModel, Store } from "@prisma/client"
 import { TransferProductGrid } from "@/components/products/transfer-product-grid"
@@ -9,9 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { CheckCircle, Barcode, ArrowRight, Save } from "lucide-react"
 import { toast } from "sonner"
-import { completeTransfer } from "@/actions/inventory/transfer-recommendation-actions"
+import { completeTransfer } from '@/actions/inventory/transfer-recommendation-actions'
 import { useRouter } from "next/navigation"
-import { ProductWithVariants } from "@/actions/inventory/product-query-actions"
+
 
 // Helper to transform Transfer Items to ProductWithVariants for the Grid
 function transformToGridData(items: (StockTransferItem & { variant: ProductVariant & { model: ProductModel } })[], scannedMap: Record<string, number>): ProductWithVariants[] {

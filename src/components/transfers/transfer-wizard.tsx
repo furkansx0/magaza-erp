@@ -1,6 +1,7 @@
-﻿"use client"
+"use client"
 
-import * as React from "react"
+import type { ValidatedProduct } from '@/types/actions';
+﻿import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -10,8 +11,8 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { ArrowRight, Check, ScanBarcode, Store, Trash2, Box, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { validateProductByBarcode, ValidatedProduct } from "@/actions/inventory/transfer-wizard-actions"
-import { createTransferRequest } from "@/actions/inventory/transfer-actions"
+import { validateProductByBarcode } from '@/actions/inventory/transfer-wizard-actions'
+import { createTransferRequest } from '@/actions/inventory/transfer-actions'
 
 interface Store {
     id: string

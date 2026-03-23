@@ -35,7 +35,7 @@ const MatrixSchema = z.object({
     variants: z.array(VariantSchema).min(1, "En az 1 varyant oluşturmalısınız"),
 });
 
-export type MatrixFormValues = z.infer<typeof MatrixSchema>;
+type MatrixFormValues = z.infer<typeof MatrixSchema>;
 
 export async function createProductMatrix(data: MatrixFormValues) {
     try {

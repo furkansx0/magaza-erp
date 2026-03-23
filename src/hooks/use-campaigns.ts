@@ -1,6 +1,6 @@
 ﻿import { useState, useCallback } from 'react';
 import { ProductCampaign } from '@prisma/client';
-import { PosProduct } from '@/actions/pos/pos-actions';
+import { PosProduct } from '@/types/pos';
 import { CartItem } from '@/components/pos/pos-client';
 
 // Define the shape of our rules since it's stored as a JSON string

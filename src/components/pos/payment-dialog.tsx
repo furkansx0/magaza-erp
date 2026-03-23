@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Banknote, CreditCard, Gift, AlertCircle, Loader2, PartyPopper } from "lucide-react"
 import { toast } from "sonner"
-import type { PaymentInput } from "@/actions/pos/pos-actions"
+import type { PaymentInput } from "@/types/pos"
 import { validateGiftCard } from "@/actions/crm/gift-card-actions"
 
 interface PaymentDialogProps {

@@ -1,9 +1,10 @@
-﻿"use client"
+"use client"
 
-import { useEffect, useState } from "react"
+import type { DateRangeType } from '@/types/actions';
+﻿import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateRangeType, getStaffSales } from "@/actions/settings/store-reporting-actions"
+import { getStaffSales } from '@/actions/settings/store-reporting-actions'
 import { format } from "date-fns"
 import { tr } from "date-fns/locale"
 import { Skeleton } from "@/components/ui/skeleton"

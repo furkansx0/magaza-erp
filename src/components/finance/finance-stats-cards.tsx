@@ -1,6 +1,6 @@
 ﻿import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, Calendar, CreditCard, AlertTriangle, TrendingUp } from "lucide-react"
-import { FinanceStats } from "@/actions/finance/finance-actions"
+import { FinanceStats } from "@/types/finance"
 import { cn } from "@/lib/utils"
 
 export function FinanceStatsCards({ stats }: { stats: FinanceStats }) {

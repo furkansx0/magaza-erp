@@ -3,39 +3,62 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export type BulkPriceOperation = {
+type BulkPriceOperation = {
     type: "PERCENTAGE_INCREASE" | "PERCENTAGE_DECREASE" | "SET_FIXED_PRICE";
     value: number;
 }
+
+const PRICE_CHUNK_SIZE = 500; // Timeout riskini sıfırlamak için 500'erlik gruplar
 
 export async function bulkUpdatePrice(variantIds: string[], operation: BulkPriceOperation) {
     try {
         if (variantIds.length === 0) return { success: false, error: "Ürün seçilmedi." };
 
-        // Transactional update for safety
-        await db.$transaction(async (tx) => {
-            // Fetch current prices to calculate %
-            const variants = await tx.productVariant.findMany({
-                where: { id: { in: variantIds } }
-            });
-
-            for (const variant of variants) {
-                let newPrice = Number(variant.salePrice);
-
-                if (operation.type === "PERCENTAGE_INCREASE") {
-                    newPrice = newPrice * (1 + operation.value / 100);
-                } else if (operation.type === "PERCENTAGE_DECREASE") {
-                    newPrice = newPrice * (1 - operation.value / 100);
-                } else if (operation.type === "SET_FIXED_PRICE") {
-                    newPrice = operation.value;
-                }
-
-                await tx.productVariant.update({
-                    where: { id: variant.id },
-                    data: { salePrice: newPrice }
-                });
+        // SET_FIXED_PRICE: updateMany ile tek atomik SQL — hiç döngü yok
+        if (operation.type === "SET_FIXED_PRICE") {
+            const chunks: string[][] = [];
+            for (let i = 0; i < variantIds.length; i += PRICE_CHUNK_SIZE) {
+                chunks.push(variantIds.slice(i, i + PRICE_CHUNK_SIZE));
             }
-        });
+
+            for (const chunk of chunks) {
+                await db.$transaction(async (tx) => {
+                    await tx.productVariant.updateMany({
+                        where: { id: { in: chunk } },
+                        data: { salePrice: operation.value }
+                    });
+                }, { maxWait: 10000, timeout: 30000 });
+            }
+        } else {
+            // PERCENTAGE: Mevcut fiyatı okuyup hesaplamamız gerekiyor
+            // Her chunk için: fetch → hesapla → updateMany ile tek SQL
+            const chunks: string[][] = [];
+            for (let i = 0; i < variantIds.length; i += PRICE_CHUNK_SIZE) {
+                chunks.push(variantIds.slice(i, i + PRICE_CHUNK_SIZE));
+            }
+
+            for (const chunk of chunks) {
+                await db.$transaction(async (tx) => {
+                    const variants = await tx.productVariant.findMany({
+                        where: { id: { in: chunk } },
+                        select: { id: true, salePrice: true }
+                    });
+
+                    // Her varyant için hesaplanmış fiyatı toplu update
+                    for (const variant of variants) {
+                        const currentPrice = Number(variant.salePrice);
+                        const newPrice = operation.type === "PERCENTAGE_INCREASE"
+                            ? currentPrice * (1 + operation.value / 100)
+                            : currentPrice * (1 - operation.value / 100);
+
+                        await tx.productVariant.update({
+                            where: { id: variant.id },
+                            data: { salePrice: Math.round(newPrice * 100) / 100 }
+                        });
+                    }
+                }, { maxWait: 10000, timeout: 30000 });
+            }
+        }
 
         revalidatePath("/dashboard/products");
         return { success: true, message: `${variantIds.length} ürünün fiyatı güncellendi.` };

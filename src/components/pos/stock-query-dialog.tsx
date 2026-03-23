@@ -1,9 +1,10 @@
-﻿"use client"
+"use client"
 
-import { useState, useEffect } from "react"
+import type { ProductStockInfo } from '@/types/actions';
+﻿import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Search, Loader2 } from "lucide-react"
-import { checkGlobalStock, ProductStockInfo } from "@/actions/inventory/stock-actions"
+import { checkGlobalStock } from '@/actions/inventory/stock-actions'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 

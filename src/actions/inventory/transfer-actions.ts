@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { createAuditLog } from "@/actions/settings/audit-actions"
 
-export type TransferItem = {
+type TransferItem = {
     variantId: string;
     barcode: string;
     modelName: string;
@@ -13,7 +13,7 @@ export type TransferItem = {
     quantity: number;
 }
 
-export type TransferResult = {
+type TransferResult = {
     success: boolean;
     error?: string;
     data?: any;

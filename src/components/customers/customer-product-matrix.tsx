@@ -3,13 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 
-export type MatrixData = {
-    topCategories: { name: string, count: number, percentage: number }[]
-    favoriteColor: string
-    favoriteSize: string
-    favoriteBrand: string
-    preferredStore: string
-}
+import type { MatrixData } from "@/types/customer"
 
 export function CustomerProductMatrix({ data }: { data: MatrixData }) {
     return (

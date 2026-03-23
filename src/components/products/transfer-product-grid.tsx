@@ -1,13 +1,14 @@
-﻿"use client"
+"use client"
 
-import * as React from "react"
+import type { ProductWithVariants } from '@/types/actions';
+﻿import * as React from "react"
 import * as XLSX from "xlsx"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { formatCurrency, cn } from "@/lib/utils"
 // Use same type as product grid manually defined or imported if exported
 // But effectively we will use the structure passed to us. 
 // Ideally we should import ProductWithVariants if possible, or redefine compatible interface.
-import { ProductWithVariants } from "@/actions/inventory/product-query-actions"
+
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"

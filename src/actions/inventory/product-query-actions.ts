@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 
-export type ProductFilterParams = {
+type ProductFilterParams = {
     page?: number;
     limit?: number;
     search?: string;
@@ -17,11 +17,26 @@ export type ProductFilterParams = {
     showArchived?: boolean; // New param
 }
 
-export type ProductWithVariants = Prisma.ProductModelGetPayload<{
+type ProductWithVariants = Prisma.ProductModelGetPayload<{
     include: {
         variants: {
-            include: {
-                stocks: true
+            select: {
+                id: true
+                modelId: true
+                color: true
+                size: true
+                sku: true
+                barcode: true
+                purchasePrice: true
+                salePrice: true
+                secondPrice: true
+                isArchived: true
+                stocks: {
+                    select: {
+                        storeId: true
+                        quantity: true
+                    }
+                }
             }
         }
     }
@@ -111,10 +126,22 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
                 include: {
                     variants: {
                         where: { isArchived: showArchived },
-                        include: {
-                            stocks: true,
-                            saleItems: {
+                        select: {
+                            id: true,
+                            modelId: true,
+                            color: true,
+                            size: true,
+                            sku: true,
+                            barcode: true,
+                            purchasePrice: true,
+                            salePrice: true,
+                            secondPrice: true,
+                            isArchived: true,
+                            // image: schema'da ProductVariant tablosunda bu alan yok;
+                            // görseller ProductImage tablosundan model üzerinden geliyor.
+                            stocks: {
                                 select: {
+                                    storeId: true,
                                     quantity: true
                                 }
                             }
@@ -165,17 +192,20 @@ export async function getFilterFacets() {
             db.productModel.findMany({
                 select: { brand: true },
                 distinct: ['brand'],
-                where: { isArchived: false, brand: { not: null } }
+                where: { isArchived: false, brand: { not: null } },
+                take: 500 // Facet limiti: 10.000+ ürünlü DB'de tam tablo taramasını önler
             }),
             db.productModel.findMany({
                 select: { category: true },
                 distinct: ['category'],
-                where: { isArchived: false, category: { not: null } }
+                where: { isArchived: false, category: { not: null } },
+                take: 500
             }),
             db.productModel.findMany({
                 select: { season: true },
                 distinct: ['season'],
-                where: { isArchived: false, season: { not: null } }
+                where: { isArchived: false, season: { not: null } },
+                take: 500
             })
         ]);
 

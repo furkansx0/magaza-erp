@@ -2,8 +2,18 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const SECRET_KEY = "gizli-anahtar-super-secret-key-degistir-bunu"; // In production use env
-const key = new TextEncoder().encode(SECRET_KEY);
+// JWT_SECRET ortam değişkeninden okunur.
+// Vercel Dashboard → Settings → Environment Variables → JWT_SECRET
+// .env.local → JWT_SECRET=en-az-32-karakter-rastgele-bir-deger
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret) {
+    throw new Error(
+        "[auth.ts] JWT_SECRET ortam değişkeni tanımlanmamış. " +
+        "Vercel Dashboard veya .env.local dosyasına JWT_SECRET ekleyin."
+    );
+}
+const key = new TextEncoder().encode(rawSecret);
+
 
 export async function encrypt(payload: any) {
     return await new SignJWT(payload)

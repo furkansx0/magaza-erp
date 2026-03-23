@@ -1,5 +1,6 @@
-﻿"use client"
+"use client"
 
+import type { DateRangeType } from '@/types/actions';
 import * as React from "react"
 import { format } from "date-fns"
 import { tr } from "date-fns/locale"
@@ -9,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { DateRangePicker } from "@/components/reporting/date-range-picker"
-import { DateRangeType } from "@/actions/settings/store-reporting-actions"
-import { getStores } from "@/actions/settings/store-actions"
-import { getSalesReport, ReportSummary, ChartData } from "@/actions/settings/report-actions"
+
+import { getStores } from '@/actions/settings/store-actions'
+import { getSalesReport } from '@/actions/settings/report-actions'
+import type { ReportSummary, ChartData } from '@/types/actions'
 import { toast } from "sonner"
 import {
     BarChart,

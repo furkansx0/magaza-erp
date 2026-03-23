@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search, ChevronRight, Phone, MapPin } from "lucide-react"
-import { SupplierWithBalance } from "@/actions/finance/finance-actions"
+import { SupplierWithBalance } from "@/types/finance"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 

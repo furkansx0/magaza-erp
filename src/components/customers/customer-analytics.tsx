@@ -4,14 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Wallet, ShoppingBag, ArrowRightLeft, Clock } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
-export type AnalyticsData = {
-    ltv: number
-    aov: number
-    totalOrders: number
-    returnRate: number
-    lastVisitDate: Date | null
-}
-
+import type { AnalyticsData } from "@/types/customer"
 function StatCard({ title, value, subtext, icon: Icon, colorClass }: { title: string, value: string, subtext?: string, icon: any, colorClass: string }) {
     return (
         <Card className="shadow-sm">

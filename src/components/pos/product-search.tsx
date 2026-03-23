@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { searchPosProducts, type PosProduct } from "@/actions/pos/pos-actions"
+import { searchPosProducts } from "@/actions/pos/pos-actions"
+import type { PosProduct } from "@/types/pos"
 // Removed unused import
 
 // Assuming useDebounce doesn't exist yet, I'll implement a simple one inside or assume standard library.

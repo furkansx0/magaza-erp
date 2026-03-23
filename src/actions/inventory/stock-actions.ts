@@ -66,12 +66,12 @@ export async function adjustStock(data: z.infer<typeof StockAdjustmentSchema>) {
     }
 }
 
-export interface StockResult {
+interface StockResult {
     storeName: string;
     stock: number;
 }
 
-export interface ProductStockInfo {
+interface ProductStockInfo {
     variantId: string;
     productName: string;
     description: string;

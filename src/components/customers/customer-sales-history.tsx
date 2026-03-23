@@ -16,25 +16,7 @@ import {
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
-export type SaleHistoryItem = {
-    id: string
-    date: Date
-    storeName: string
-    totalAmount: number
-    paymentMethods: { method: "CASH" | "CREDIT_CARD" | "GIFT_CARD" | string, amount: number, giftCardId?: string }[]
-    cashierName: string
-    items: {
-        id: string
-        name: string
-        variantName: string // e.g. "Siyah - L"
-        quantity: number
-        price: number
-        isReturn: boolean
-        sku: string
-        salesRepName?: string | null // Added
-    }[]
-    isReturn: boolean
-}
+import type { SaleHistoryItem } from "@/types/customer"
 
 function PaymentMethodsBadge({ methods }: { methods: SaleHistoryItem['paymentMethods'] }) {
     const router = useRouter()

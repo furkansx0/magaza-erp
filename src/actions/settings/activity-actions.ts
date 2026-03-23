@@ -3,7 +3,7 @@
 import { db } from "@/lib/db"
 import { startOfDay, endOfDay, format } from "date-fns"
 
-export interface ActivityRow {
+interface ActivityRow {
     id: string
     docNo: string // Display ID
     type: string // "Satış", "İade"

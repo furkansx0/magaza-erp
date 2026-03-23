@@ -1,12 +1,14 @@
-﻿"use client"
+"use client"
 
-import * as React from "react"
+import type { TransferItem } from '@/types/actions';
+﻿import * as React from "react"
 import { Search, ArrowRight, Truck, Check, Trash2, X, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-import { searchPosProducts, PosProduct } from "@/actions/pos/pos-actions"
-import { transferStock, TransferItem } from "@/actions/inventory/transfer-actions"
+import { searchPosProducts } from '@/actions/pos/pos-actions'
+import { PosProduct } from "@/types/pos"
+import { transferStock } from '@/actions/inventory/transfer-actions'
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 

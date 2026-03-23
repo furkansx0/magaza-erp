@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { createAuditLog } from "@/actions/settings/audit-actions"
 
-export type ProductCampaignRule = {
+type ProductCampaignRule = {
     buyQuantity?: number;
     getQuantity?: number;
     discountPercent?: number; // 100 for free
@@ -18,7 +18,7 @@ export type ProductCampaignRule = {
     }
 }
 
-export type ProductCampaignFormValues = {
+type ProductCampaignFormValues = {
     name: string;
     description?: string;
     isActive: boolean;

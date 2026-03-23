@@ -1,10 +1,11 @@
 "use client"
 
+import type { ProductWithVariants } from '@/types/actions';
 import * as React from "react"
 import * as XLSX from "xlsx"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { formatCurrency, cn } from "@/lib/utils"
-import { ProductWithVariants } from "@/actions/inventory/product-query-actions"
+
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -12,8 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Search, Save, Archive, RefreshCw, Printer, Tag, ArrowRightLeft, Filter, X, Check, Trash2, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { bulkArchive, bulkUnarchive, bulkUpdatePrice, bulkDelete } from "@/actions/inventory/bulk-actions"
-import { bulkCreateTransfer } from "@/actions/inventory/bulk-transfer-action"
+import { bulkArchive, bulkUnarchive, bulkUpdatePrice, bulkDelete } from '@/actions/inventory/bulk-actions'
+import { bulkCreateTransfer } from '@/actions/inventory/bulk-transfer-action'
 import {
     Dialog,
     DialogContent,

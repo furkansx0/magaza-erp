@@ -1,7 +1,8 @@
-﻿"use client"
+"use client"
 
-import { useEffect, useState } from "react";
-import { DateRangeType, getStoreDashboardStats } from "@/actions/settings/store-reporting-actions";
+import type { DateRangeType } from '@/types/actions';
+﻿import { useEffect, useState } from "react";
+import { getStoreDashboardStats } from '@/actions/settings/store-reporting-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
