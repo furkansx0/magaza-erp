@@ -1,7 +1,5 @@
-﻿import { Suspense } from "react"
 import { getFinanceStats, getSuppliers } from "@/actions/finance/finance-actions"
-import { FinanceStatsCards } from "@/components/finance/finance-stats-cards"
-import { SupplierList } from "@/components/finance/supplier-list"
+import { FinanceListClient } from "@/components/finance/finance-list-client"
 import { AddSupplierDialog } from "@/components/finance/add-supplier-dialog"
 import { Coins } from "lucide-react"
 
@@ -27,16 +25,7 @@ export default async function FinancePage() {
                 <AddSupplierDialog />
             </div>
 
-            {/* KPI Cards */}
-            <FinanceStatsCards stats={stats} />
-
-            {/* Supplier List */}
-            <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-gray-800">Tedarikçi Listesi</h2>
-                <Suspense fallback={<div className="p-8 text-center">Yükleniyor...</div>}>
-                    <SupplierList data={suppliers} />
-                </Suspense>
-            </div>
+            <FinanceListClient initialData={{ stats, suppliers }} />
         </div>
     )
 }

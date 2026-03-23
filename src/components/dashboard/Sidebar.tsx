@@ -167,9 +167,21 @@ export function Sidebar({ className, userRole, userPermissions, storeId, modules
                     <div className="space-y-1">
                         {routes.map((route) => {
                             const handlePrefetch = () => {
-                                if (route.id === "products") {
-                                    // Prefetch products with default filters (limit: 1000000 as used in page)
-                                    preload("/api/products?limit=1000000", (url: string) => fetch(url).then(res => res.json()))
+                                const fetcher = (url: string) => fetch(url).then(res => res.json());
+                                
+                                switch (route.id) {
+                                    case "products":
+                                        preload("/api/products?limit=1000000", fetcher);
+                                        break;
+                                    case "customers":
+                                        preload("/api/customers", fetcher);
+                                        break;
+                                    case "stores":
+                                        preload("/api/stores", fetcher);
+                                        break;
+                                    case "finance":
+                                        preload("/api/finance", fetcher);
+                                        break;
                                 }
                             }
 

@@ -558,7 +558,7 @@ export function TransferProductGrid(props: ProductGridProps & { onSelectionChang
                     <div className="flex items-center gap-4">
                         <h2 className="text-lg font-bold tracking-tight">Ürünler</h2>
                         <div className="text-[10px] text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
-                            {props.totalCount} ürün
+                            {filteredData.length} ürün
                         </div>
                     </div>
                 </div>
