@@ -36,7 +36,7 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
             <div className="mb-4">
                 <div className="flex justify-between">
                     <span>Tarih:</span>
-                    <span>{sale.createdAt.toLocaleDateString("tr-TR")} {sale.createdAt.toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span suppressHydrationWarning>{sale.createdAt ? new Date(sale.createdAt).toLocaleDateString("tr-TR") : "-"} {sale.createdAt ? new Date(sale.createdAt).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' }) : ""}</span>
                 </div>
                 <div className="flex justify-between">
                     <span>Fiş No:</span>

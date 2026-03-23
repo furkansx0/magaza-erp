@@ -104,8 +104,8 @@ export function CustomerSalesHistory({ sales }: { sales: SaleHistoryItem[] }) {
                                                 {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                             </Button>
                                         </TableCell>
-                                        <TableCell className="py-1 px-2 text-xs font-mono text-gray-600">
-                                            {sale.date.toLocaleDateString("tr-TR")} <span className="text-gray-400">{sale.date.toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <TableCell suppressHydrationWarning className="py-1 px-2 text-xs font-mono text-gray-600">
+                                            {sale.date ? new Date(sale.date).toLocaleDateString("tr-TR") : "-"} <span className="text-gray-400">{sale.date ? new Date(sale.date).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' }) : ""}</span>
                                         </TableCell>
                                         <TableCell className="py-1 px-2">
                                             <Badge variant="outline" className="text-[10px] font-normal bg-white whitespace-nowrap">{sale.storeName}</Badge>

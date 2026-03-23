@@ -145,20 +145,27 @@ export function CustomerGridView({ data }: CustomerGridProps) {
 
     const [selectedIds, setSelectedIds] = React.useState<string[]>([])
     const [searchTerm, setSearchTerm] = React.useState("")
-    const [filteredData, setFilteredData] = React.useState(data)
+
+    const parsedData = React.useMemo(() => data.map(r => ({
+        ...r,
+        createdAt: new Date(r.createdAt),
+        lastPurchaseDate: r.lastPurchaseDate ? new Date(r.lastPurchaseDate) : null
+    })), [data])
+
+    const [filteredData, setFilteredData] = React.useState(parsedData)
     const [sortOption, setSortOption] = React.useState("default")
 
     // Filter States
-    const uniqueCities = React.useMemo(() => Array.from(new Set(data.map(r => r.city).filter(Boolean))).sort(), [data])
-    const uniqueDistricts = React.useMemo(() => Array.from(new Set(data.map(r => r.district).filter(Boolean))).sort(), [data])
-    const uniqueTypes = React.useMemo(() => Array.from(new Set(data.map(r => r.type).filter(Boolean))).sort(), [data])
+    const uniqueCities = React.useMemo(() => Array.from(new Set(parsedData.map(r => r.city).filter(Boolean))).sort(), [parsedData])
+    const uniqueDistricts = React.useMemo(() => Array.from(new Set(parsedData.map(r => r.district).filter(Boolean))).sort(), [parsedData])
+    const uniqueTypes = React.useMemo(() => Array.from(new Set(parsedData.map(r => r.type).filter(Boolean))).sort(), [parsedData])
 
     const [selectedCities, setSelectedCities] = React.useState<string[]>([])
     const [selectedDistricts, setSelectedDistricts] = React.useState<string[]>([])
     const [selectedTypes, setSelectedTypes] = React.useState<string[]>([])
 
     React.useEffect(() => {
-        let filtered = [...data]
+        let filtered = [...parsedData]
 
         if (searchTerm) {
             const lower = searchTerm.toLowerCase()
@@ -191,7 +198,7 @@ export function CustomerGridView({ data }: CustomerGridProps) {
         })
 
         setFilteredData(filtered)
-    }, [searchTerm, selectedCities, selectedDistricts, selectedTypes, sortOption, data])
+    }, [searchTerm, selectedCities, selectedDistricts, selectedTypes, sortOption, parsedData])
 
     const toggleSelectAll = () => {
         if (selectedIds.length === filteredData.length) setSelectedIds([])
@@ -375,10 +382,10 @@ export function CustomerGridView({ data }: CustomerGridProps) {
                                 <div className="px-2 border-r h-full flex items-center justify-end font-mono font-bold text-green-700 bg-green-50/30">
                                     {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(row.totalSpent)}
                                 </div>
-                                <div className="px-2 border-r h-full flex items-center justify-end text-[10px] text-gray-500">
+                                <div suppressHydrationWarning className="px-2 border-r h-full flex items-center justify-end text-[10px] text-gray-500">
                                     {row.lastPurchaseDate ? row.lastPurchaseDate.toLocaleDateString('tr-TR') : '-'}
                                 </div>
-                                <div className="px-2 border-r h-full flex items-center justify-center text-[10px] text-gray-400">
+                                <div suppressHydrationWarning className="px-2 border-r h-full flex items-center justify-center text-[10px] text-gray-400">
                                     {row.createdAt.toLocaleDateString('tr-TR')}
                                 </div>
                             </div>

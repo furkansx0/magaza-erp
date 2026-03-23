@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -299,8 +299,8 @@ export function PaymentDialog({ open, onOpenChange, totalAmount, onComplete, isL
                                         {card.code}
                                         {card.type === "PERCENTAGE" && <span className="text-[10px] bg-purple-200 text-purple-700 px-1 rounded">%{card.percentage}</span>}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        SKT: {new Date(card.expiryDate).toLocaleDateString('tr-TR')}
+                                    <div suppressHydrationWarning className="text-xs text-muted-foreground">
+                                        SKT: {card.expiryDate ? new Date(card.expiryDate).toLocaleDateString('tr-TR') : '-'}
                                     </div>
                                 </div>
                                 <div className="text-right flex items-center gap-3">

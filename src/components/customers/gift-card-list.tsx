@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -148,9 +148,9 @@ export function GiftCardList({ customer, giftCards, highlightId }: { customer: a
                                                     <Copy className="h-3 w-3" />
                                                 </Button>
                                             </div>
-                                            <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                            <div suppressHydrationWarning className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                                 <History className="w-3 h-3" />
-                                                Son Kullanma: {new Date(card.expiryDate).toLocaleDateString('tr-TR')}
+                                                Son Kullanma: {card.expiryDate ? new Date(card.expiryDate).toLocaleDateString('tr-TR') : '-'}
                                             </div>
                                             <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                                 {card.campaign ? (
@@ -224,7 +224,7 @@ export function GiftCardList({ customer, giftCards, highlightId }: { customer: a
                                                 </div>
                                                 {usageInfo.map((u: any, idx: number) => (
                                                     <div key={idx} className="flex justify-between pl-4 text-gray-500">
-                                                        <span>{u.date.toLocaleDateString('tr-TR')} tarihli satışta</span>
+                                                        <span suppressHydrationWarning>{u.date ? new Date(u.date).toLocaleDateString('tr-TR') : '-'} tarihli satışta</span>
                                                         <span className="font-medium text-gray-700">-{formatCurrency(u.amount)}</span>
                                                     </div>
                                                 ))}
