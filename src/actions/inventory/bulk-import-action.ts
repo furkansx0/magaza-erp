@@ -19,7 +19,11 @@ interface ImportRow {
     [key: string]: any;
 }
 
-const CHUNK_SIZE = 500; // Her pakette max 500 satır
+// CHUNK_SIZE: PgBouncer transaction-mode ile uyumlu güvenli boyut.
+// 500 satır × ~5 sorgu/satır = ~2500 sorgu → transaction timeout/closed hatası.
+// 50 satır × ~5 sorgu/satır = ~250 sorgu → güvenli, hızlı, izole.
+const CHUNK_SIZE = 50;
+
 
 export async function importProducts(rows: ImportRow[], stores: { id: string, name: string }[]) {
     try {
@@ -210,8 +214,8 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                     }
                 }
             }, {
-                maxWait: 10000,   // Her chunk için 10s bekleme
-                timeout: 30000    // Her chunk için 30s limit (Vercel safe)
+                maxWait: 15000,   // Her chunk için 15s bekleme
+                timeout: 25000    // Her chunk için 25s limit (PgBouncer safe)
             });
         }
 
