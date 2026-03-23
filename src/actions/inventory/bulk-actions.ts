@@ -8,55 +8,39 @@ type BulkPriceOperation = {
     value: number;
 }
 
-const PRICE_CHUNK_SIZE = 500; // Timeout riskini sıfırlamak için 500'erlik gruplar
-
 export async function bulkUpdatePrice(variantIds: string[], operation: BulkPriceOperation) {
     try {
         if (variantIds.length === 0) return { success: false, error: "Ürün seçilmedi." };
 
-        // SET_FIXED_PRICE: updateMany ile tek atomik SQL — hiç döngü yok
         if (operation.type === "SET_FIXED_PRICE") {
-            const chunks: string[][] = [];
-            for (let i = 0; i < variantIds.length; i += PRICE_CHUNK_SIZE) {
-                chunks.push(variantIds.slice(i, i + PRICE_CHUNK_SIZE));
-            }
-
-            for (const chunk of chunks) {
-                await db.$transaction(async (tx) => {
-                    await tx.productVariant.updateMany({
-                        where: { id: { in: chunk } },
-                        data: { salePrice: operation.value }
-                    });
-                }, { maxWait: 10000, timeout: 30000 });
-            }
+            // Tek atomik SQL — $transaction gerektirmez, PgBouncer uyumlu
+            await db.productVariant.updateMany({
+                where: { id: { in: variantIds } },
+                data: { salePrice: operation.value }
+            });
         } else {
-            // PERCENTAGE: Mevcut fiyatı okuyup hesaplamamız gerekiyor
-            // Her chunk için: fetch → hesapla → updateMany ile tek SQL
-            const chunks: string[][] = [];
-            for (let i = 0; i < variantIds.length; i += PRICE_CHUNK_SIZE) {
-                chunks.push(variantIds.slice(i, i + PRICE_CHUNK_SIZE));
-            }
+            // Yüzde hesabı için mevcut fiyatları oku, sonra updateMany
+            // Tüm varyantları TEK sorguda çek
+            const variants = await db.productVariant.findMany({
+                where: { id: { in: variantIds } },
+                select: { id: true, salePrice: true }
+            });
 
-            for (const chunk of chunks) {
-                await db.$transaction(async (tx) => {
-                    const variants = await tx.productVariant.findMany({
-                        where: { id: { in: chunk } },
-                        select: { id: true, salePrice: true }
+            // Her varyant için hesapla, promise array'e ekle
+            // Promise.all ile paralel gönder (bağımsız UPDATE'ler, $transaction yok)
+            const PARALLEL_BATCH = 50; // Neon'u bunaltmamak için
+            for (let i = 0; i < variants.length; i += PARALLEL_BATCH) {
+                const batch = variants.slice(i, i + PARALLEL_BATCH);
+                await Promise.all(batch.map(variant => {
+                    const current  = Number(variant.salePrice);
+                    const newPrice = operation.type === "PERCENTAGE_INCREASE"
+                        ? current * (1 + operation.value / 100)
+                        : current * (1 - operation.value / 100);
+                    return db.productVariant.update({
+                        where: { id: variant.id },
+                        data:  { salePrice: Math.round(newPrice * 100) / 100 }
                     });
-
-                    // Her varyant için hesaplanmış fiyatı toplu update
-                    for (const variant of variants) {
-                        const currentPrice = Number(variant.salePrice);
-                        const newPrice = operation.type === "PERCENTAGE_INCREASE"
-                            ? currentPrice * (1 + operation.value / 100)
-                            : currentPrice * (1 - operation.value / 100);
-
-                        await tx.productVariant.update({
-                            where: { id: variant.id },
-                            data: { salePrice: Math.round(newPrice * 100) / 100 }
-                        });
-                    }
-                }, { maxWait: 10000, timeout: 30000 });
+                }));
             }
         }
 
@@ -71,12 +55,10 @@ export async function bulkUpdatePrice(variantIds: string[], operation: BulkPrice
 
 export async function bulkArchive(variantIds: string[]) {
     try {
-        // Archive Variants
         const res = await db.productVariant.updateMany({
             where: { id: { in: variantIds } },
             data: { isArchived: true }
         });
-
         revalidatePath("/dashboard/products");
         return { success: true, message: `${res.count} ürün arşivlendi.` };
     } catch (error) {
@@ -84,67 +66,52 @@ export async function bulkArchive(variantIds: string[]) {
     }
 }
 
-
 export async function bulkUnarchive(variantIds: string[]) {
     try {
         const res = await db.productVariant.updateMany({
             where: { id: { in: variantIds } },
             data: { isArchived: false }
         });
-
         revalidatePath("/dashboard/products");
         return { success: true, message: `${res.count} ürün arşivden çıkarıldı.` };
     } catch (error) {
-        return { success: false, error: "İşlem başarısız." };
         return { success: false, error: "İşlem başarısız." };
     }
 }
 
 export async function bulkDelete(variantIds: string[]) {
     try {
-        let deletedCount = 0;
-        let skippedCount = 0;
+        let deletedCount  = 0;
+        let skippedCount  = 0;
 
-        await db.$transaction(async (tx) => {
-            // 1. Fetch variants with their sales count
-            const variantsToCheck = await tx.productVariant.findMany({
-                where: { id: { in: variantIds } },
-                include: {
-                    _count: {
-                        select: { saleItems: true }
-                    }
-                }
-            });
-
-            const idsToDelete: string[] = [];
-
-            for (const v of variantsToCheck) {
-                // Check if sold
-                if (v._count.saleItems > 0) {
-                    skippedCount++;
-                    continue;
-                }
-
-                // Check for Stock History / Transfers
-                const movementCount = await tx.stockMovement.count({ where: { variantId: v.id } });
-                const transferCount = await tx.stockTransferItem.count({ where: { variantId: v.id } });
-
-                if (movementCount > 0 || transferCount > 0) {
-                    skippedCount++;
-                } else {
-                    idsToDelete.push(v.id);
-                }
-            }
-
-            if (idsToDelete.length > 0) {
-                // Delete Variants (Safe to delete as we verified no history exists)
-                await tx.productVariant.deleteMany({
-                    where: { id: { in: idsToDelete } }
-                });
-
-                deletedCount = idsToDelete.length;
+        // Tüm kontrolleri $transaction OLMADAN yap — PgBouncer uyumlu
+        // Adım 1: Satış geçmişi kontrolü (tek sorguda _count ile)
+        const variantsToCheck = await db.productVariant.findMany({
+            where: { id: { in: variantIds } },
+            select: {
+                id: true,
+                _count: { select: { saleItems: true, stockMovements: true, stockTransferItems: true } }
             }
         });
+
+        const idsToDelete: string[] = [];
+
+        for (const v of variantsToCheck) {
+            // Satış, stok hareketi veya transfer geçmişi varsa atla
+            if (v._count.saleItems > 0 || v._count.stockMovements > 0 || v._count.stockTransferItems > 0) {
+                skippedCount++;
+            } else {
+                idsToDelete.push(v.id);
+            }
+        }
+
+        // Adım 2: Güvenli olanları tek sorguda sil
+        if (idsToDelete.length > 0) {
+            const res = await db.productVariant.deleteMany({
+                where: { id: { in: idsToDelete } }
+            });
+            deletedCount = res.count;
+        }
 
         revalidatePath("/dashboard/products");
 
