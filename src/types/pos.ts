@@ -16,7 +16,8 @@ export type PosProduct = {
 export type CartItem = {
     variantId: string;
     quantity: number;
-    price: number;
+    originalPrice: number;
+    finalPrice: number;
     salesRepId?: string; // Added per-item sales rep
 }
 

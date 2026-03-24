@@ -144,7 +144,8 @@ export default async function DashboardPage() {
                             payments: s.payments.map(p => ({ ...p, amount: Number(p.amount) })),
                             items: s.items.map(i => ({
                                 ...i,
-                                price: Number(i.price),
+                                originalPrice: Number(i.originalPrice),
+                                finalPrice: Number(i.finalPrice),
                                 salesRepName: i.salesRep?.name || i.salesRep?.username || null, // Map Sales Rep Name
                                 variant: {
                                     ...i.variant,

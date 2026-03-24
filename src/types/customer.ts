@@ -24,7 +24,8 @@ export interface SaleHistoryItem {
         name: string
         variantName: string
         quantity: number
-        price: number
+        originalPrice: number
+        finalPrice: number
         isReturn: boolean
         salesRepName: string | null
     }[]

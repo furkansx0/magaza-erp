@@ -239,7 +239,8 @@ export async function processSale(data: {
                         create: data.items.map(item => ({
                             variantId: item.variantId,
                             quantity: item.quantity,
-                            price: item.price,
+                            originalPrice: item.originalPrice,
+                            finalPrice: item.finalPrice,
                             salesRepId: item.salesRepId // Updated
                         }))
                     }

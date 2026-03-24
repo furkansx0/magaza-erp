@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import { ProductSearch } from "./product-search"
@@ -31,6 +31,8 @@ interface Staff {
 
 export interface CartItem extends PosProduct {
     quantity: number;
+    originalPrice: number;
+    finalPrice: number;
     salesRepId?: string;
 }
 
@@ -120,6 +122,8 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
             return [{
                 ...product,
                 quantity: qtyToAdd,
+                originalPrice: product.price,
+                finalPrice: product.price,
                 salesRepId: filteredStaffList[0]?.id
             }, ...prev]
         })
@@ -159,6 +163,12 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
         ));
     }
 
+    const updateFinalPrice = (variantId: string, newPrice: number) => {
+        setCart(prev => prev.map(item => 
+            item.variantId === variantId ? { ...item, finalPrice: newPrice >= 0 ? newPrice : 0 } : item
+        ))
+    }
+
     const removeFromCart = (variantId: string) => {
         setCart(prev => prev.filter(item => item.variantId !== variantId))
     }
@@ -174,7 +184,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
         setCart([])
     }, [selectedStoreId])
 
-    const totalAmount = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)
+    const totalAmount = cart.reduce((acc, item) => acc + (item.finalPrice * item.quantity), 0)
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
 
@@ -214,7 +224,8 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                 items: cart.map(i => ({
                     variantId: i.variantId,
                     quantity: i.quantity,
-                    price: i.price,
+                    originalPrice: i.originalPrice,
+                    finalPrice: i.finalPrice,
                     salesRepId: i.salesRepId
                 })),
                 totalAmount: finalTotalAmount,
@@ -244,8 +255,8 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
 
     const returnsList = cart.filter(i => i.quantity < 0);
     const salesList = cart.filter(i => i.quantity > 0);
-    const returnsTotal = returnsList.reduce((acc, item) => acc + (item.price * Math.abs(item.quantity)), 0);
-    const salesTotal = salesList.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const returnsTotal = returnsList.reduce((acc, item) => acc + (item.finalPrice * Math.abs(item.quantity)), 0);
+    const salesTotal = salesList.reduce((acc, item) => acc + (item.finalPrice * item.quantity), 0);
     const exchangeBalance = salesTotal - returnsTotal;
 
     return (
@@ -414,7 +425,22 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.price)}
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                {item.originalPrice > item.finalPrice && (
+                                                                    <span className="text-[10px] text-red-500 line-through">
+                                                                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
+                                                                    </span>
+                                                                )}
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <Input 
+                                                                        type="number" 
+                                                                        value={item.finalPrice === 0 ? "" : item.finalPrice} 
+                                                                        onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
+                                                                        className="w-20 h-8 text-right font-bold text-red-700 bg-red-50/50 border-red-200"
+                                                                    />
+                                                                    <span className="text-xs text-muted-foreground mr-1">₺</span>
+                                                                </div>
+                                                            </div>
                                                         </TableCell>
                                                         <TableCell className="text-center p-1">
                                                             <div className="flex items-center justify-center gap-1 scale-90">
@@ -471,7 +497,22 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.price)}
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                {item.originalPrice > item.finalPrice && (
+                                                                    <span className="text-[10px] text-gray-400 line-through">
+                                                                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
+                                                                    </span>
+                                                                )}
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <Input 
+                                                                        type="number" 
+                                                                        value={item.finalPrice === 0 ? "" : item.finalPrice} 
+                                                                        onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
+                                                                        className="w-20 h-8 text-right font-bold text-green-700 bg-green-50/50 border-green-200"
+                                                                    />
+                                                                    <span className="text-xs text-muted-foreground mr-1">₺</span>
+                                                                </div>
+                                                            </div>
                                                         </TableCell>
                                                         <TableCell className="text-center p-1">
                                                             <div className="flex items-center justify-center gap-1 scale-90">
@@ -548,7 +589,22 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                             </TableCell>
 
                                             <TableCell className="text-right font-medium">
-                                                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.price)}
+                                                <div className="flex flex-col items-end gap-1">
+                                                    {item.originalPrice > item.finalPrice && (
+                                                        <span className="text-[10px] text-red-500 line-through">
+                                                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
+                                                        </span>
+                                                    )}
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Input 
+                                                            type="number" 
+                                                            value={item.finalPrice === 0 ? "" : item.finalPrice} 
+                                                            onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
+                                                            className="w-20 h-8 text-right font-bold text-indigo-700 bg-indigo-50/50 border-indigo-200"
+                                                        />
+                                                        <span className="text-xs text-muted-foreground mr-1">₺</span>
+                                                    </div>
+                                                </div>
                                             </TableCell>
 
                                             <TableCell className="text-center">

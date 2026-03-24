@@ -413,9 +413,10 @@ model GiftCard {
 }
 
 model SaleItem {
-  id        String   @id @default(uuid())
-  quantity  Int
-  price     Decimal  
+  id            String   @id @default(uuid())
+  quantity      Int
+  originalPrice Decimal  @default(0)
+  finalPrice    Decimal  @default(0)
   
   saleId    String
   sale      Sale     @relation(fields: [saleId], references: [id])

@@ -108,7 +108,7 @@ export async function getStoreDashboardStats(storeId: string) {
             // Priority: Item Sales Rep -> Cashier
             const staff = item.salesRep || sale.cashier;
             if (staff && staff.id) {
-                const itemTotal = Number(item.price) * item.quantity;
+                const itemTotal = Number(item.finalPrice) * item.quantity;
                 const existing = staffMap.get(staff.id) || { name: staff.name || staff.username, total: 0, count: 0 };
                 existing.total += itemTotal;
                 existing.count += 1; // Count items or just sales involved? Let's sum revenue mainly.
@@ -185,7 +185,8 @@ export async function getStoreActivityReport(
             // Map items to include mapped SalesRepName, but KEEP variant structure
             items: sale.items.map((i: any) => ({
                 ...i,
-                price: Number(i.price),
+                originalPrice: Number(i.originalPrice),
+                finalPrice: Number(i.finalPrice),
                 // Keep variant object as is for SaleDetailDialog
                 salesRepName: i.salesRep?.name || i.salesRep?.username || null,
                 variant: i.variant ? {
@@ -339,7 +340,7 @@ export async function getStoreStaffReport(storeId: string, dateParams: DateRange
 
             const stats = getOrInitStaff(targetStaff);
             if (stats) {
-                const amount = Number(item.price) * item.quantity;
+                const amount = Number(item.finalPrice) * item.quantity;
                 stats.totalSales += amount;
                 stats.totalItems += Math.abs(item.quantity);
 
@@ -412,7 +413,8 @@ export async function getStaffSales(storeId: string, staffId: string, dateParams
             cashierName: sale.cashier.name,
             items: sale.items.map((i: any) => ({
                 ...i,
-                price: Number(i.price),
+                originalPrice: Number(i.originalPrice),
+                finalPrice: Number(i.finalPrice),
                 salesRepName: i.salesRep?.name || i.salesRep?.username || null,
                 // Fix Decimal serialization for variant
                 variant: i.variant ? {

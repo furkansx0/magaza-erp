@@ -99,7 +99,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             name: item.variant.model.name,
             variantName: `${item.variant.color || ""} ${item.variant.size || ""}`.trim(),
             quantity: item.quantity,
-            price: Number(item.price),
+            originalPrice: Number(item.originalPrice),
+            finalPrice: Number(item.finalPrice),
             isReturn: item.quantity < 0,
             salesRepName: item.salesRep ? (item.salesRep.name || item.salesRep.username) : null // Mapped
         }))

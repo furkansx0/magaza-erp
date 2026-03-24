@@ -154,8 +154,13 @@ export function CustomerSalesHistory({ sales }: { sales: SaleHistoryItem[] }) {
                                                                         <TableCell className="py-1 text-[10px] text-muted-foreground">{item.variantName}</TableCell>
                                                                         <TableCell className="py-1 text-[10px] text-indigo-600 font-medium">{item.salesRepName || "-"}</TableCell>
                                                                         <TableCell className="py-1 text-[10px] text-center">{item.quantity}</TableCell>
-                                                                        <TableCell className="py-1 text-[10px] text-right font-mono">{formatCurrency(item.price)}</TableCell>
-                                                                        <TableCell className="py-1 text-[10px] text-right font-mono font-bold">{formatCurrency(item.price * item.quantity)}</TableCell>
+                                                                        <TableCell className="py-1 text-[10px] text-right font-mono">
+                                                                            {item.originalPrice > item.finalPrice && (
+                                                                                <span className="line-through text-red-400 mr-1 text-[8px]">{formatCurrency(item.originalPrice)}</span>
+                                                                            )}
+                                                                            {formatCurrency(item.finalPrice)}
+                                                                        </TableCell>
+                                                                        <TableCell className="py-1 text-[10px] text-right font-mono font-bold">{formatCurrency(item.finalPrice * item.quantity)}</TableCell>
                                                                     </TableRow>
                                                                 ))}
                                                             </TableBody>

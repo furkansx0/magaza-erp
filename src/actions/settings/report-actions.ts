@@ -68,12 +68,15 @@ export async function getSalesReport(
         const saleRevenue = Number(sale.totalAmount);
 
         let saleCost = 0;
+        let exactItemRevenue = 0;
         for (const item of sale.items) {
             const cost = Number(item.variant.purchasePrice) * item.quantity;
             saleCost += cost;
+            exactItemRevenue += Number(item.finalPrice) * item.quantity;
         }
 
-        const saleProfit = saleRevenue - saleCost;
+        // Kâr (finalPrice - purchasePrice) mantığı
+        const saleProfit = exactItemRevenue - saleCost;
 
         totalRevenue += saleRevenue;
         totalCost += saleCost;

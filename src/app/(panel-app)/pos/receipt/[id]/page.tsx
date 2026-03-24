@@ -73,7 +73,7 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
                             </td>
                             <td className="pt-1 text-center align-top">{item.quantity}</td>
                             <td className="pt-1 text-right align-top">
-                                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Number(item.price) * item.quantity)}
+                                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Number(item.finalPrice) * item.quantity)}
                             </td>
                         </tr>
                     ))}
