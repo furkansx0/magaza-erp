@@ -623,7 +623,7 @@ export function ProductGrid(props: ProductGridProps) {
             `${colWidths.priceOut}px`,
             ...visibleStores.map(s => `${colWidths[`store_${s.id}`] || colWidths.stockIn}px`),
             `${colWidths.totalStock}px`,
-            "40px" // Actions
+            "110px" // Actions
         ];
         return sb.join(" ");
     };
@@ -873,7 +873,7 @@ export function ProductGrid(props: ProductGridProps) {
                             T. Stok
                             <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors z-10" onMouseDown={(e) => startResize(e, 'totalStock')} />
                         </div>
-                        <div className="p-2 border-r text-center"></div>
+                        <div className="p-2 border-l text-center sticky right-0 bg-gray-100 z-40 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] font-bold text-[10px] flex items-center justify-center h-full">İşlemler</div>
                     </div>
 
                     {/* Rows */}
@@ -917,7 +917,7 @@ export function ProductGrid(props: ProductGridProps) {
                                     </div>
                                 ))}
                                 <div className="px-2 border-r h-full flex items-center justify-center font-mono font-bold text-gray-700 overflow-hidden text-ellipsis">{row.stockTotal}</div>
-                                <div className="px-2 border-r h-full flex items-center justify-center">
+                                <div className={cn("px-2 border-l h-full flex items-center justify-center sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]", virtualRow.index % 2 === 0 ? "bg-white" : "bg-gray-50")}>
                                     <div className="flex justify-center gap-1">
                                         <Button
                                             variant="ghost"
