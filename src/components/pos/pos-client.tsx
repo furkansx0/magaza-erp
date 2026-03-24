@@ -425,20 +425,20 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            <div className="flex flex-col items-end gap-1">
+                                                            <div className="flex items-center justify-end gap-2">
                                                                 {item.originalPrice > item.finalPrice && (
-                                                                    <span className="text-[10px] text-red-500 line-through">
+                                                                    <span className="text-sm text-red-600 line-through font-bold bg-white px-1.5 py-0.5 rounded shadow-sm border border-red-100">
                                                                         {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
                                                                     </span>
                                                                 )}
-                                                                <div className="flex items-center justify-end gap-1">
+                                                                <div className="flex items-center gap-1">
                                                                     <Input 
                                                                         type="number" 
                                                                         value={item.finalPrice === 0 ? "" : item.finalPrice} 
                                                                         onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
                                                                         className="w-20 h-8 text-right font-bold text-red-700 bg-red-50/50 border-red-200"
                                                                     />
-                                                                    <span className="text-xs text-muted-foreground mr-1">₺</span>
+                                                                    <span className="text-xs text-muted-foreground">₺</span>
                                                                 </div>
                                                             </div>
                                                         </TableCell>
@@ -497,20 +497,20 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            <div className="flex flex-col items-end gap-1">
+                                                            <div className="flex items-center justify-end gap-2">
                                                                 {item.originalPrice > item.finalPrice && (
-                                                                    <span className="text-[10px] text-gray-400 line-through">
+                                                                    <span className="text-sm text-gray-500 line-through font-bold bg-white px-1.5 py-0.5 rounded shadow-sm border border-gray-200">
                                                                         {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
                                                                     </span>
                                                                 )}
-                                                                <div className="flex items-center justify-end gap-1">
+                                                                <div className="flex items-center gap-1">
                                                                     <Input 
                                                                         type="number" 
                                                                         value={item.finalPrice === 0 ? "" : item.finalPrice} 
                                                                         onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
                                                                         className="w-20 h-8 text-right font-bold text-green-700 bg-green-50/50 border-green-200"
                                                                     />
-                                                                    <span className="text-xs text-muted-foreground mr-1">₺</span>
+                                                                    <span className="text-xs text-muted-foreground">₺</span>
                                                                 </div>
                                                             </div>
                                                         </TableCell>
@@ -589,20 +589,20 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                             </TableCell>
 
                                             <TableCell className="text-right font-medium">
-                                                <div className="flex flex-col items-end gap-1">
+                                                <div className="flex items-center justify-end gap-2">
                                                     {item.originalPrice > item.finalPrice && (
-                                                        <span className="text-[10px] text-red-500 line-through">
+                                                        <span className="text-sm text-red-600 line-through font-bold bg-white px-1.5 py-0.5 rounded shadow-sm border border-red-100">
                                                             {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
                                                         </span>
                                                     )}
-                                                    <div className="flex items-center justify-end gap-1">
+                                                    <div className="flex items-center gap-1">
                                                         <Input 
                                                             type="number" 
                                                             value={item.finalPrice === 0 ? "" : item.finalPrice} 
                                                             onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
                                                             className="w-20 h-8 text-right font-bold text-indigo-700 bg-indigo-50/50 border-indigo-200"
                                                         />
-                                                        <span className="text-xs text-muted-foreground mr-1">₺</span>
+                                                        <span className="text-xs text-muted-foreground">₺</span>
                                                     </div>
                                                 </div>
                                             </TableCell>
