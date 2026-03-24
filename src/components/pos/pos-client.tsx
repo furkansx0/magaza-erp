@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Trash2, ShoppingCart, CreditCard, Banknote, CheckCircle2, Loader2, Receipt, LayoutDashboard, ShoppingBag, RefreshCw, Truck, Search as SearchIcon, UserSquare, Coins, Tag } from "lucide-react"
+import { Trash2, ShoppingCart, CreditCard, Banknote, CheckCircle2, Loader2, Receipt, LayoutDashboard, ShoppingBag, RefreshCw, Truck, Search as SearchIcon, UserSquare, Coins, Tag, ChevronDown, ChevronUp, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
@@ -29,11 +29,21 @@ interface Staff {
     storeId: string | null;
 }
 
+// A "sub-row" represents one unit of a cart item that can have its own price
+export interface CartSubRow {
+    id: string; // unique sub-row id
+    finalPrice: number;
+    salesRepId?: string;
+}
+
 export interface CartItem extends PosProduct {
     quantity: number;
     originalPrice: number;
     finalPrice: number;
     salesRepId?: string;
+    // Sub-rows for split pricing (one per unit when expanded)
+    subRows?: CartSubRow[];
+    isExpanded?: boolean;
 }
 
 export function PosClient({ staffList, storeName, stores, currentUserRole, currentUserStoreId, campaigns }: {
@@ -109,16 +119,6 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                 )
             }
             // New Item
-            // Initial Sales Rep: Try to find "current user" in the filtered staff list, or default to first one?
-            // Actually, for "Auto" assignment, if I am a cashier, assign me.
-            // But since we are client side, we don't easily know "my" ID unless passed.
-            // We'll rely on user selecting it, OR default to empty?
-            // User requirement: "her ürüne özel satıcı personel seçme kısmı ekle"
-            // Let's Default to the FIRST staff in the list as a fallback, so it's not empty?
-            // Or better: Empty, force them to check?
-            // Industry standard: Default to login user. I'll pick first staff for now as I don't have explicit "currentUserId" prop passed clearly matching staffList.
-            // Wait, I can try to match logic.
-            // Let's just set it to `filteredStaffList[0]?.id` if available.
             return [{
                 ...product,
                 quantity: qtyToAdd,
@@ -136,12 +136,6 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
     }
 
     const updateQuantity = (variantId: string, qty: number) => {
-        // Allow 0? No, usually remove.
-        // Allow negative? Only if added as return.
-        // Logic here simplifies to just update and remove if 0 inside render or remove button.
-        // We'll trust the caller to handle 0 removal or just keep it.
-        // Actually addToCart handles removal if 0. Here we just update.
-
         setCart(prev => prev.map(item => {
             if (item.variantId === variantId) {
                 if (qty === 0) return item; // Don't allow 0 via update, user should delete
@@ -150,6 +144,21 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                 if (qty > 0 && qty > item.stock) {
                     toast.error(`Stok yetersiz! (Maks: ${item.stock})`);
                     return item;
+                }
+                // Sync sub-rows if expanded
+                if (item.isExpanded && item.subRows) {
+                    const currentSubRows = item.subRows;
+                    if (qty > currentSubRows.length) {
+                        // Add new sub-rows with original price
+                        const newRows: CartSubRow[] = Array.from({ length: qty - currentSubRows.length }, (_, i) => ({
+                            id: `${variantId}-sub-${Date.now()}-${i}`,
+                            finalPrice: item.originalPrice,
+                            salesRepId: item.salesRepId
+                        }));
+                        return { ...item, quantity: qty, subRows: [...currentSubRows, ...newRows] };
+                    } else if (qty < currentSubRows.length) {
+                        return { ...item, quantity: qty, subRows: currentSubRows.slice(0, qty) };
+                    }
                 }
                 return { ...item, quantity: qty }
             }
@@ -164,10 +173,52 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
     }
 
     const updateFinalPrice = (variantId: string, newPrice: number) => {
-        setCart(prev => prev.map(item => 
+        setCart(prev => prev.map(item =>
             item.variantId === variantId ? { ...item, finalPrice: newPrice >= 0 ? newPrice : 0 } : item
         ))
     }
+
+    const restoreOriginalPrice = (variantId: string) => {
+        setCart(prev => prev.map(item =>
+            item.variantId === variantId ? { ...item, finalPrice: item.originalPrice } : item
+        ))
+    }
+
+    const updateSubRowPrice = (variantId: string, subRowId: string, newPrice: number) => {
+        setCart(prev => prev.map(item => {
+            if (item.variantId !== variantId || !item.subRows) return item;
+            const updatedSubRows = item.subRows.map(sr =>
+                sr.id === subRowId ? { ...sr, finalPrice: newPrice >= 0 ? newPrice : 0 } : sr
+            );
+            // Re-compute finalPrice as average for the parent
+            const avgPrice = updatedSubRows.reduce((acc, sr) => acc + sr.finalPrice, 0) / updatedSubRows.length;
+            return { ...item, subRows: updatedSubRows, finalPrice: avgPrice };
+        }));
+    };
+
+    const restoreSubRowOriginalPrice = (variantId: string, subRowId: string) => {
+        const item = cart.find(i => i.variantId === variantId);
+        if (!item) return;
+        updateSubRowPrice(variantId, subRowId, item.originalPrice);
+    };
+
+    const toggleExpand = (variantId: string) => {
+        setCart(prev => prev.map(item => {
+            if (item.variantId !== variantId) return item;
+            if (item.isExpanded) {
+                // Collapse: remove sub-rows, set finalPrice to original (no discount in collapsed)
+                return { ...item, isExpanded: false, subRows: undefined };
+            } else {
+                // Expand: create sub-rows for each unit
+                const subRows: CartSubRow[] = Array.from({ length: Math.abs(item.quantity) }, (_, i) => ({
+                    id: `${variantId}-sub-${i}`,
+                    finalPrice: item.finalPrice,
+                    salesRepId: item.salesRepId
+                }));
+                return { ...item, isExpanded: true, subRows };
+            }
+        }));
+    };
 
     const removeFromCart = (variantId: string) => {
         setCart(prev => prev.filter(item => item.variantId !== variantId))
@@ -184,7 +235,12 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
         setCart([])
     }, [selectedStoreId])
 
-    const totalAmount = cart.reduce((acc, item) => acc + (item.finalPrice * item.quantity), 0)
+    const totalAmount = cart.reduce((acc, item) => {
+        if (item.isExpanded && item.subRows) {
+            return acc + item.subRows.reduce((subAcc, sr) => subAcc + sr.finalPrice, 0);
+        }
+        return acc + (item.finalPrice * item.quantity);
+    }, 0)
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
 
@@ -210,24 +266,53 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
         setIsPaymentDialogOpen(true)
     }
 
+    // Helper to flatten cart items (handle expanded sub-rows for sale processing)
+    const getFlattenedCartItems = () => {
+        const flatItems: Array<{
+            variantId: string;
+            quantity: number;
+            originalPrice: number;
+            finalPrice: number;
+            salesRepId?: string;
+        }> = [];
+
+        for (const item of cart) {
+            if (item.isExpanded && item.subRows) {
+                // Group sub-rows by price
+                const priceGroups = new Map<number, number>();
+                for (const sr of item.subRows) {
+                    priceGroups.set(sr.finalPrice, (priceGroups.get(sr.finalPrice) || 0) + 1);
+                }
+                for (const [price, qty] of priceGroups) {
+                    flatItems.push({
+                        variantId: item.variantId,
+                        quantity: qty,
+                        originalPrice: item.originalPrice,
+                        finalPrice: price,
+                        salesRepId: item.salesRepId
+                    });
+                }
+            } else {
+                flatItems.push({
+                    variantId: item.variantId,
+                    quantity: item.quantity,
+                    originalPrice: item.originalPrice,
+                    finalPrice: item.finalPrice,
+                    salesRepId: item.salesRepId
+                });
+            }
+        }
+        return flatItems;
+    };
+
     const handleCompletePayment = async (payments: any[], isZeroBalanceExchange = false) => {
         setCheckoutLoading(true)
         try {
-            // ... (rest of logic same, but override totalAmount if zero-balance)
             const primaryStaffId = filteredStaffList[0]?.id;
-
-            // Should we force totalAmount to 0 if isZeroBalanceExchange? 
-            // Yes, user requested "finansal olarak 0 fark ile kapatilmali".
             const finalTotalAmount = isZeroBalanceExchange ? 0 : (isExchangeMode ? exchangeBalance : (totalAmount - totalCampaignDiscount));
 
             const result = await processSale({
-                items: cart.map(i => ({
-                    variantId: i.variantId,
-                    quantity: i.quantity,
-                    originalPrice: i.originalPrice,
-                    finalPrice: i.finalPrice,
-                    salesRepId: i.salesRepId
-                })),
+                items: getFlattenedCartItems(),
                 totalAmount: finalTotalAmount,
                 payments: payments,
                 staffId: primaryStaffId,
@@ -258,6 +343,53 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
     const returnsTotal = returnsList.reduce((acc, item) => acc + (item.finalPrice * Math.abs(item.quantity)), 0);
     const salesTotal = salesList.reduce((acc, item) => acc + (item.finalPrice * item.quantity), 0);
     const exchangeBalance = salesTotal - returnsTotal;
+
+    // Price cell component for reuse (old price = badge, clicking restores; new price = input)
+    const PriceCell = ({
+        item,
+        isReturn = false,
+        subRowId,
+    }: {
+        item: CartItem;
+        isReturn?: boolean;
+        subRowId?: string;
+    }) => {
+        const isSubRow = !!subRowId;
+        const currentFinalPrice = isSubRow
+            ? (item.subRows?.find(sr => sr.id === subRowId)?.finalPrice ?? item.finalPrice)
+            : item.finalPrice;
+        const isDiscounted = item.originalPrice > currentFinalPrice;
+        const colorClass = isReturn ? "text-red-700 bg-red-50/50 border-red-200" : isSubRow ? "text-orange-700 bg-orange-50/50 border-orange-200" : "text-indigo-700 bg-indigo-50/50 border-indigo-200";
+
+        return (
+            <div className="flex items-center justify-end gap-2">
+                {isDiscounted && (
+                    <button
+                        onClick={() => isSubRow
+                            ? restoreSubRowOriginalPrice(item.variantId, subRowId!)
+                            : restoreOriginalPrice(item.variantId)
+                        }
+                        title="Orijinal fiyata geri dön"
+                        className="text-sm text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+                    >
+                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
+                    </button>
+                )}
+                <div className="flex items-center gap-1">
+                    <Input
+                        type="number"
+                        value={currentFinalPrice === 0 ? "" : currentFinalPrice}
+                        onChange={(e) => isSubRow
+                            ? updateSubRowPrice(item.variantId, subRowId!, Number(e.target.value))
+                            : updateFinalPrice(item.variantId, Number(e.target.value))
+                        }
+                        className={cn("w-20 h-8 text-right font-bold", colorClass)}
+                    />
+                    <span className="text-xs text-muted-foreground">₺</span>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-950">
@@ -384,9 +516,6 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
 
                 {/* Cart Area */}
                 <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border overflow-hidden flex flex-col h-full">
-                    {/* Header REMOVED as per user request */}
-                    {/* <div className="p-3 border-b bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">...</div> */}
-
                     {/* Table Area - Conditional Layout */}
                     <div className="flex-1 overflow-auto">
                         {cart.length === 0 ? (
@@ -425,22 +554,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                {item.originalPrice > item.finalPrice && (
-                                                                    <span className="text-sm text-red-600 line-through font-bold bg-white px-1.5 py-0.5 rounded shadow-sm border border-red-100">
-                                                                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
-                                                                    </span>
-                                                                )}
-                                                                <div className="flex items-center gap-1">
-                                                                    <Input 
-                                                                        type="number" 
-                                                                        value={item.finalPrice === 0 ? "" : item.finalPrice} 
-                                                                        onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
-                                                                        className="w-20 h-8 text-right font-bold text-red-700 bg-red-50/50 border-red-200"
-                                                                    />
-                                                                    <span className="text-xs text-muted-foreground">₺</span>
-                                                                </div>
-                                                            </div>
+                                                            <PriceCell item={item} isReturn={true} />
                                                         </TableCell>
                                                         <TableCell className="text-center p-1">
                                                             <div className="flex items-center justify-center gap-1 scale-90">
@@ -497,22 +611,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                {item.originalPrice > item.finalPrice && (
-                                                                    <span className="text-sm text-gray-500 line-through font-bold bg-white px-1.5 py-0.5 rounded shadow-sm border border-gray-200">
-                                                                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
-                                                                    </span>
-                                                                )}
-                                                                <div className="flex items-center gap-1">
-                                                                    <Input 
-                                                                        type="number" 
-                                                                        value={item.finalPrice === 0 ? "" : item.finalPrice} 
-                                                                        onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
-                                                                        className="w-20 h-8 text-right font-bold text-green-700 bg-green-50/50 border-green-200"
-                                                                    />
-                                                                    <span className="text-xs text-muted-foreground">₺</span>
-                                                                </div>
-                                                            </div>
+                                                            <PriceCell item={item} />
                                                         </TableCell>
                                                         <TableCell className="text-center p-1">
                                                             <div className="flex items-center justify-center gap-1 scale-90">
@@ -546,82 +645,111 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[40%]">Ürün</TableHead>
-                                        <TableHead className="w-[25%] text-left">Satış Temsilcisi</TableHead>
+                                        <TableHead className="w-[38%]">Ürün</TableHead>
+                                        <TableHead className="w-[22%] text-left">Satış Temsilcisi</TableHead>
                                         <TableHead className="text-right">Fiyat</TableHead>
-                                        <TableHead className="text-center">Adet</TableHead>
+                                        <TableHead className="text-center w-[140px]">Adet</TableHead>
                                         <TableHead className="text-right">Tutar</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {cart.map(item => (
-                                        <TableRow key={item.variantId}>
-                                            <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span className="font-semibold">{item.modelName}</span>
-                                                    <span className="text-xs text-muted-foreground">{item.barcode} • {item.color}/{item.size} • Stok: {item.stock}</span>
-                                                    {campaignDiscounts.some(d => d.matchedItemIds.includes(item.variantId)) && (
-                                                        <span className="text-[10px] text-green-600 flex items-center gap-1 mt-0.5 font-bold">
-                                                            <Tag className="w-3 h-3" />
-                                                            Kampanyalı Ürün
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <Select
-                                                    value={item.salesRepId || ""}
-                                                    onValueChange={(val) => updateSalesRep(item.variantId, val)}
-                                                >
-                                                    <SelectTrigger className="h-8 border-gray-200 bg-gray-50/50">
-                                                        <SelectValue placeholder="Personel Seç" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {filteredStaffList.map(staff => (
-                                                            <SelectItem key={staff.id} value={staff.id}>
-                                                                {staff.name || staff.username}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-
-                                            <TableCell className="text-right font-medium">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {item.originalPrice > item.finalPrice && (
-                                                        <span className="text-sm text-red-600 line-through font-bold bg-white px-1.5 py-0.5 rounded shadow-sm border border-red-100">
-                                                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
-                                                        </span>
-                                                    )}
-                                                    <div className="flex items-center gap-1">
-                                                        <Input 
-                                                            type="number" 
-                                                            value={item.finalPrice === 0 ? "" : item.finalPrice} 
-                                                            onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
-                                                            className="w-20 h-8 text-right font-bold text-indigo-700 bg-indigo-50/50 border-indigo-200"
-                                                        />
-                                                        <span className="text-xs text-muted-foreground">₺</span>
+                                        <React.Fragment key={item.variantId}>
+                                            {/* Main cart row */}
+                                            <TableRow className={cn(item.isExpanded && "bg-indigo-50/30 dark:bg-indigo-950/20")}>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-semibold">{item.modelName}</span>
+                                                        <span className="text-xs text-muted-foreground">{item.barcode} • {item.color}/{item.size} • Stok: {item.stock}</span>
+                                                        {campaignDiscounts.some(d => d.matchedItemIds.includes(item.variantId)) && (
+                                                            <span className="text-[10px] text-green-600 flex items-center gap-1 mt-0.5 font-bold">
+                                                                <Tag className="w-3 h-3" />
+                                                                Kampanyalı Ürün
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                </div>
-                                            </TableCell>
+                                                </TableCell>
 
-                                            <TableCell className="text-center">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.variantId, item.quantity - 1)} disabled={Math.abs(item.quantity) <= 1}>-</Button>
-                                                    <span className="w-8 text-center font-bold">{Math.abs(item.quantity)}</span>
-                                                    <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.variantId, item.quantity + 1)}>+</Button>
-                                                </div>
-                                            </TableCell>
+                                                <TableCell>
+                                                    <Select
+                                                        value={item.salesRepId || ""}
+                                                        onValueChange={(val) => updateSalesRep(item.variantId, val)}
+                                                    >
+                                                        <SelectTrigger className="h-8 border-gray-200 bg-gray-50/50">
+                                                            <SelectValue placeholder="Personel Seç" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {filteredStaffList.map(staff => (
+                                                                <SelectItem key={staff.id} value={staff.id}>
+                                                                    {staff.name || staff.username}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
 
-                                            <TableCell className="text-right font-bold">
-                                                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.price * Math.abs(item.quantity))}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Trash2 className="h-4 w-4 text-red-500 cursor-pointer hover:text-red-700" onClick={() => removeFromCart(item.variantId)} />
-                                            </TableCell>
-                                        </TableRow>
+                                                <TableCell className="text-right font-medium">
+                                                    {item.isExpanded ? (
+                                                        <span className="text-xs text-muted-foreground italic">Aşağıda ayrı ayrı</span>
+                                                    ) : (
+                                                        <PriceCell item={item} />
+                                                    )}
+                                                </TableCell>
+
+                                                <TableCell className="text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.variantId, item.quantity - 1)} disabled={Math.abs(item.quantity) <= 1}>-</Button>
+                                                        <span className="w-8 text-center font-bold">{Math.abs(item.quantity)}</span>
+                                                        <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.variantId, item.quantity + 1)}>+</Button>
+                                                        {/* Expand toggle - only when qty > 1 */}
+                                                        {item.quantity > 1 && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-6 w-6 p-0 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
+                                                                onClick={() => toggleExpand(item.variantId)}
+                                                                title={item.isExpanded ? "Satırları birleştir" : "Her adet için ayrı fiyat belirle"}
+                                                            >
+                                                                {item.isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+
+                                                <TableCell className="text-right font-bold">
+                                                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(
+                                                        item.isExpanded && item.subRows
+                                                            ? item.subRows.reduce((a, sr) => a + sr.finalPrice, 0)
+                                                            : item.finalPrice * item.quantity
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Trash2 className="h-4 w-4 text-red-500 cursor-pointer hover:text-red-700" onClick={() => removeFromCart(item.variantId)} />
+                                                </TableCell>
+                                            </TableRow>
+
+                                            {/* Expanded sub-rows: one per unit with its own price */}
+                                            {item.isExpanded && item.subRows && item.subRows.map((sr, idx) => (
+                                                <TableRow key={sr.id} className="bg-orange-50/20 dark:bg-orange-950/10 border-l-4 border-l-orange-300">
+                                                    <TableCell colSpan={2} className="py-1.5 pl-8">
+                                                        <span className="text-xs text-muted-foreground font-medium">
+                                                            {idx + 1}. adet — {item.color} / {item.size}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right py-1.5">
+                                                        <PriceCell item={item} subRowId={sr.id} />
+                                                    </TableCell>
+                                                    <TableCell className="text-center py-1.5">
+                                                        <span className="text-xs text-muted-foreground">1 adet</span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right py-1.5 font-bold text-sm">
+                                                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(sr.finalPrice)}
+                                                    </TableCell>
+                                                    <TableCell />
+                                                </TableRow>
+                                            ))}
+                                        </React.Fragment>
                                     ))}
                                 </TableBody>
                             </Table>

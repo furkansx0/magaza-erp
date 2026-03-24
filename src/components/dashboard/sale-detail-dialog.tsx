@@ -136,14 +136,23 @@ export function SaleDetailDialog({ open, onOpenChange, sale }: SaleDetailDialogP
                                             ) : "-"}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
-                                            {item.salesRepName || "-"}
+                                            {item.salesRepName || item.salesRep?.name || item.salesRep?.username || "-"}
                                         </TableCell>
                                         <TableCell className="text-right font-mono text-xs">
-                                            {Number(item.price).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                {item.originalPrice && Number(item.originalPrice) > Number(item.finalPrice) && (
+                                                    <span className="text-muted-foreground line-through text-xs">
+                                                        {Number(item.originalPrice).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                                                    </span>
+                                                )}
+                                                <span className={item.originalPrice && Number(item.originalPrice) > Number(item.finalPrice) ? "text-green-600 font-bold" : ""}>
+                                                    {Number(item.finalPrice ?? item.originalPrice ?? 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                                                </span>
+                                            </div>
                                         </TableCell>
                                         <TableCell className="text-center">{item.quantity}</TableCell>
                                         <TableCell className="text-right font-bold font-mono">
-                                            {Number(Number(item.price) * item.quantity).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                                            {Number(Number(item.finalPrice ?? item.originalPrice ?? 0) * Math.abs(item.quantity)).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Search, Save, Archive, RefreshCw, Printer, Tag, ArrowRightLeft, Filter, X, Check, Trash2, Pencil } from "lucide-react"
+import { Search, Save, Archive, RefreshCw, Printer, Tag, ArrowRightLeft, Filter, X, Check, Trash2, Pencil, BarChart2 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { bulkArchive, bulkUnarchive, bulkUpdatePrice, bulkDelete } from '@/actions/inventory/bulk-actions'
@@ -935,6 +935,15 @@ export function ProductGrid(props: ProductGridProps) {
                                             }}
                                         >
                                             <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+
+                                        <Button
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0 hover:bg-indigo-100 text-indigo-500 rounded-full"
+                                            title="Performans Dashboardı"
+                                            onClick={() => router.push(`/dashboard/products/${row.productId}`)}
+                                        >
+                                            <BarChart2 className="h-3.5 w-3.5" />
                                         </Button>
 
                                         {row.type === "VARIANT" && (
