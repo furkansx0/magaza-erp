@@ -3,10 +3,16 @@ import { db } from "@/lib/db";
 
 export async function GET() {
     try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const stores = await db.store.findMany({
             include: {
                 _count: {
-                    select: { users: true, sales: true }
+                    select: { 
+                        users: { where: { role: 'CASHIER', isArchived: false } },
+                        sales: { where: { createdAt: { gte: today } } } 
+                    }
                 },
                 manager: {
                     select: {
