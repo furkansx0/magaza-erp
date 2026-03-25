@@ -35,6 +35,64 @@ export interface CartItem extends PosProduct {
     salesRepId?: string;
 }
 
+// Standalone component (outside PosClient) to prevent re-mount on every render
+function PriceCell({
+    item,
+    isReturn = false,
+    onPriceChange,
+    onRestore,
+}: {
+    item: CartItem;
+    isReturn?: boolean;
+    onPriceChange: (variantId: string, price: number) => void;
+    onRestore: (variantId: string) => void;
+}) {
+    const isDiscounted = item.originalPrice > item.finalPrice;
+    const colorClass = isReturn
+        ? "text-red-700 bg-red-50/50 border-red-200"
+        : "text-indigo-700 bg-indigo-50/50 border-indigo-200";
+
+    // Use local state for the input to prevent focus loss during parent state updates
+    const [localValue, setLocalValue] = React.useState(item.finalPrice.toString());
+
+    // Sync from parent if it changes externally (like 'restore')
+    React.useEffect(() => {
+        setLocalValue(item.finalPrice.toString());
+    }, [item.finalPrice]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setLocalValue(val);
+        const num = Number(val);
+        if (!isNaN(num)) {
+            onPriceChange(item.variantId, num);
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-end gap-2">
+            {isDiscounted && (
+                <button
+                    onClick={() => onRestore(item.variantId)}
+                    title="Orijinal fiyata geri dön"
+                    className="text-sm text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+                >
+                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
+                </button>
+            )}
+            <div className="flex items-center gap-1">
+                <Input
+                    type="number"
+                    value={localValue === "0" ? "" : localValue}
+                    onChange={handleChange}
+                    className={cn("w-20 h-8 text-right font-bold", colorClass)}
+                />
+                <span className="text-xs text-muted-foreground">₺</span>
+            </div>
+        </div>
+    );
+}
+
 export function PosClient({ staffList, storeName, stores, currentUserRole, currentUserStoreId, campaigns }: {
     staffList: Staff[],
     storeName: string,
@@ -183,36 +241,6 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
     const salesTotal = salesList.reduce((acc, item) => acc + (item.finalPrice * item.quantity), 0);
     const exchangeBalance = salesTotal - returnsTotal;
 
-    // Price cell: original price as amber badge (click to restore), finalPrice as input
-    const PriceCell = ({ item, isReturn = false }: { item: CartItem; isReturn?: boolean }) => {
-        const isDiscounted = item.originalPrice > item.finalPrice;
-        const colorClass = isReturn
-            ? "text-red-700 bg-red-50/50 border-red-200"
-            : "text-indigo-700 bg-indigo-50/50 border-indigo-200";
-
-        return (
-            <div className="flex items-center justify-end gap-2">
-                {isDiscounted && (
-                    <button
-                        onClick={() => restoreOriginalPrice(item.variantId)}
-                        title="Orijinal fiyata geri dön"
-                        className="text-sm text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
-                    >
-                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(item.originalPrice)}
-                    </button>
-                )}
-                <div className="flex items-center gap-1">
-                    <Input
-                        type="number"
-                        value={item.finalPrice === 0 ? "" : item.finalPrice}
-                        onChange={(e) => updateFinalPrice(item.variantId, Number(e.target.value))}
-                        className={cn("w-20 h-8 text-right font-bold", colorClass)}
-                    />
-                    <span className="text-xs text-muted-foreground">₺</span>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-950">
@@ -329,7 +357,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            <PriceCell item={item} isReturn={true} />
+                                                             <PriceCell item={item} isReturn={true} onPriceChange={updateFinalPrice} onRestore={restoreOriginalPrice} />
                                                         </TableCell>
                                                         <TableCell className="text-center p-1">
                                                             <div className="flex items-center justify-center gap-1 scale-90">
@@ -367,7 +395,6 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                     <TableHead className="w-[50%]">Ürün</TableHead>
                                                     <TableHead className="text-right">Fiyat</TableHead>
                                                     <TableHead className="text-center">Adet</TableHead>
-                                                    <TableHead className="text-right">Tutar</TableHead>
                                                     <TableHead className="w-[40px]"></TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -381,7 +408,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium text-sm">
-                                                            <PriceCell item={item} />
+                                                             <PriceCell item={item} onPriceChange={updateFinalPrice} onRestore={restoreOriginalPrice} />
                                                         </TableCell>
                                                         <TableCell className="text-center p-1">
                                                             <div className="flex items-center justify-center gap-1 scale-90">
@@ -446,7 +473,7 @@ export function PosClient({ staffList, storeName, stores, currentUserRole, curre
                                                 </Select>
                                             </TableCell>
                                             <TableCell className="text-right font-medium">
-                                                <PriceCell item={item} />
+                                                <PriceCell item={item} onPriceChange={updateFinalPrice} onRestore={restoreOriginalPrice} />
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <div className="flex items-center justify-center gap-2">

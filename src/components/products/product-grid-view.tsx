@@ -199,6 +199,7 @@ export function ProductGrid(props: ProductGridProps) {
     const [printQuantity, setPrintQuantity] = React.useState<number>(1)
     const [printMode, setPrintMode] = React.useState<"manual" | "store_stock">("store_stock")
     const [printStoreId, setPrintStoreId] = React.useState<string>("all")
+    const [isBulkPrint, setIsBulkPrint] = React.useState(false)
 
     // Wizard State
     const [wizardOpen, setWizardOpen] = React.useState(false)
@@ -465,77 +466,67 @@ export function ProductGrid(props: ProductGridProps) {
         else toast.error(res.error);
     }
 
-    const handleBulkPrint = async () => {
+    const handleBulkPrint = () => {
         if (selectedIds.length === 0) return toast.error("Yazdırılacak ürün seçiniz");
 
         const variantsToPrint = filteredData.filter(r => selectedIds.includes(r.id) && r.type === "VARIANT");
         if (variantsToPrint.length === 0) return toast.error("Seçili öğeler arasında yazdırılabilir varyant bulunamadı.");
 
+        setIsBulkPrint(true);
+        setVariantToPrint(variantsToPrint[0]); // Metadata for preview
+        setPrintMode("store_stock");
+        setPrintStoreId("all");
+        setPrintQuantity(1);
+        setPrintBarcodeOpen(true);
+    }
+
+
+    const executePrintLabels = async () => {
+        const targets = isBulkPrint 
+            ? filteredData.filter(r => selectedIds.includes(r.id) && r.type === "VARIANT")
+            : [variantToPrint].filter(v => v !== null) as GridRow[];
+        
+        if (targets.length === 0) return;
+
         try {
-            toast.loading("Etiketler yazıcıya gönderiliyor...", { id: "print-batch-grid" });
+            toast.loading(targets.length > 1 ? `${targets.length} adet barkod yazıcı kuyruğuna ekleniyor...` : "Barkod yazıcıya gönderiliyor...", { id: "print-process" });
             const { printBarcode } = await import("@/lib/print-barcode");
 
-            for (const v of variantsToPrint) {
-                // Toplam stok kadar yazdır, yoksada 1 adet yazdır
-                const qty = v.stockTotal > 0 ? v.stockTotal : 1;
+            for (const v of targets) {
+                let finalQty = 1;
+                if (printMode === "manual") {
+                    finalQty = printQuantity;
+                } else if (printMode === "store_stock") {
+                    if (printStoreId === "all") {
+                        finalQty = v.stockTotal > 0 ? v.stockTotal : 1;
+                    } else {
+                        const storeQty = v[`stock_${printStoreId}`] || 0;
+                        if (storeQty > 0) finalQty = storeQty;
+                        else if (isBulkPrint) continue; // Skip if no stock during bulk
+                        else {
+                            toast.error(`${v.sku} için bu mağazada stok yok!`, { id: "print-process" });
+                            return;
+                        }
+                    }
+                }
 
                 await printBarcode({
-                    modelName: v.sku,
+                    modelName: v.sku, 
                     sku: v.sku,
                     barcode: v.barcode,
                     size: v.size,
                     season: v.season,
                     color: v.color,
                     salePrice: v.salePrice,
-                    quantity: qty
+                    quantity: finalQty
                 });
             }
 
-            toast.success(`${variantsToPrint.length} adet varyantın etiketleri stok miktarınca yazıcı kuyruğuna iletildi!`, { id: "print-batch-grid" });
-        } catch (err: any) {
-            toast.error(err.message || "Yazdırma hatası", { id: "print-batch-grid" });
-        }
-    }
-
-    const executePrintSingle = async () => {
-        if (!variantToPrint) return;
-
-        try {
-            toast.loading("Etiket yazıcıya gönderiliyor...", { id: "print-single" });
-            const { printBarcode } = await import("@/lib/print-barcode");
-
-            let finalQty = 1;
-
-            if (printMode === "manual") {
-                finalQty = printQuantity;
-            } else if (printMode === "store_stock") {
-                if (printStoreId === "all") {
-                    finalQty = variantToPrint.stockTotal > 0 ? variantToPrint.stockTotal : 1;
-                } else {
-                    const storeQty = variantToPrint[`stock_${printStoreId}`] || 0;
-                    if (storeQty > 0) finalQty = storeQty;
-                    else {
-                        toast.error("Seçilen mağazada stok yok, işlem iptal edildi.", { id: "print-single" });
-                        return;
-                    }
-                }
-            }
-
-            await printBarcode({
-                modelName: variantToPrint.sku,
-                sku: variantToPrint.sku,
-                barcode: variantToPrint.barcode,
-                size: variantToPrint.size,
-                season: variantToPrint.season,
-                color: variantToPrint.color,
-                salePrice: variantToPrint.salePrice,
-                quantity: finalQty
-            });
-
-            toast.success(`${finalQty} adet etiket yazdırıldı.`, { id: "print-single" });
+            toast.success(targets.length > 1 ? "Tüm barkodlar başarıyla gönderildi!" : "Barkod başarıyla gönderildi!", { id: "print-process" });
             setPrintBarcodeOpen(false);
+            if (isBulkPrint) setSelectedIds([]);
         } catch (err: any) {
-            toast.error(err.message || "Yazdırma hatası", { id: "print-single" });
+            toast.error(err.message || "Yazdırma hatası", { id: "print-process" });
         }
     }
 
@@ -952,6 +943,7 @@ export function ProductGrid(props: ProductGridProps) {
                                                 className="h-6 w-6 p-0 hover:bg-gray-200 text-gray-700 rounded-full"
                                                 title="Barkod Etiketi Yazdır"
                                                 onClick={() => {
+                                                    setIsBulkPrint(false);
                                                     setVariantToPrint(row);
                                                     setPrintMode("store_stock");
                                                     setPrintStoreId("all");
@@ -1000,12 +992,19 @@ export function ProductGrid(props: ProductGridProps) {
                     </DialogHeader>
                     {variantToPrint && (
                         <div className="space-y-4 py-4">
-                            <div className="bg-gray-50 border p-3 rounded-md text-sm">
-                                <p><strong>SKU:</strong> {variantToPrint.sku}</p>
-                                <p><strong>Model:</strong> {variantToPrint.modelName}</p>
-                                <p><strong>Beden/Renk:</strong> {variantToPrint.size} / {variantToPrint.color}</p>
-                                <p><strong>Stok Toplamı:</strong> {variantToPrint.stockTotal}</p>
-                            </div>
+                            {isBulkPrint ? (
+                                <div className="bg-blue-50 border border-blue-200 p-3 rounded-md text-sm text-blue-800">
+                                    <p className="font-bold">Toplu Yazdırma Modu</p>
+                                    <p>Seçilen <strong>{selectedIds.length}</strong> adet varyant için aşağıda seçilen ayarlar uygulanarak tek seferde yazdırılacaktır.</p>
+                                </div>
+                            ) : (
+                                <div className="bg-gray-50 border p-3 rounded-md text-sm">
+                                    <p><strong>SKU:</strong> {variantToPrint.sku}</p>
+                                    <p><strong>Model:</strong> {variantToPrint.modelName}</p>
+                                    <p><strong>Beden/Renk:</strong> {variantToPrint.size} / {variantToPrint.color}</p>
+                                    <p><strong>Stok Toplamı:</strong> {variantToPrint.stockTotal}</p>
+                                </div>
+                            )}
 
                             <div className="space-y-2 pt-2">
                                 <Label>Baskı Yöntemi</Label>
@@ -1055,8 +1054,8 @@ export function ProductGrid(props: ProductGridProps) {
                     )}
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setPrintBarcodeOpen(false)}>İptal</Button>
-                        <Button onClick={executePrintSingle} className="bg-blue-600 hover:bg-blue-700">
-                            <Printer className="mr-2 h-4 w-4" /> Yazdır
+                        <Button onClick={executePrintLabels} className="bg-blue-600 hover:bg-blue-700">
+                             <Printer className="mr-2 h-4 w-4" /> {isBulkPrint ? "Tümünü Yazdır" : "Yazdır"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
