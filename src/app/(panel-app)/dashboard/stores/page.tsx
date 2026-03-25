@@ -4,10 +4,16 @@ import { DeleteStoreDialog } from "@/components/stores/delete-store-dialog"
 import { StoreListClient } from "@/components/stores/store-list-client"
 
 export default async function StoresPage() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const stores = await db.store.findMany({
         include: {
             _count: {
-                select: { users: true, sales: true }
+                select: { 
+                    users: { where: { role: 'CASHIER', isArchived: false } },
+                    sales: { where: { createdAt: { gte: today } } } 
+                }
             },
             manager: {
                 select: {

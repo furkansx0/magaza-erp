@@ -63,11 +63,11 @@ export function StoreCard({ store }: StoreCardProps) {
                 </div>
                 <div className="flex gap-4 pt-2 border-t mt-2">
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Personel</span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider text-blue-600">Aktif Personel</span>
                         <span className="text-xl font-bold text-gray-700">{store._count.users}</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">İşlem</span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider text-green-600">Bugünkü İşlem</span>
                         <span className="text-xl font-bold text-gray-700">{store._count.sales}</span>
                     </div>
                 </div>

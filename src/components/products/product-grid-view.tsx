@@ -200,6 +200,7 @@ export function ProductGrid(props: ProductGridProps) {
     const [printMode, setPrintMode] = React.useState<"manual" | "store_stock">("store_stock")
     const [printStoreId, setPrintStoreId] = React.useState<string>("all")
     const [isBulkPrint, setIsBulkPrint] = React.useState(false)
+    const [bulkStockTotals, setBulkStockTotals] = React.useState<{ total: number, stores: Record<string, number> } | null>(null)
 
     // Wizard State
     const [wizardOpen, setWizardOpen] = React.useState(false)
@@ -474,6 +475,17 @@ export function ProductGrid(props: ProductGridProps) {
 
         setIsBulkPrint(true);
         setVariantToPrint(variantsToPrint[0]); // Metadata for preview
+        
+        // Calculate aggregate stocks for all selected variants
+        const totals = {
+            total: variantsToPrint.reduce((acc, v) => acc + v.stockTotal, 0),
+            stores: {} as Record<string, number>
+        };
+        stores.forEach(s => {
+            totals.stores[s.id] = variantsToPrint.reduce((acc, v) => acc + (Number(v[`stock_${s.id}`]) || 0), 0);
+        });
+        setBulkStockTotals(totals);
+
         setPrintMode("store_stock");
         setPrintStoreId("all");
         setPrintQuantity(1);
@@ -1027,10 +1039,12 @@ export function ProductGrid(props: ProductGridProps) {
                                             <SelectValue placeholder="Mağaza Seçin" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">Tüm Mağazaların Toplamı ({variantToPrint.stockTotal} Adet)</SelectItem>
+                                            <SelectItem value="all">
+                                                Tüm Mağazaların Toplamı ({isBulkPrint ? bulkStockTotals?.total : variantToPrint.stockTotal} Adet)
+                                            </SelectItem>
                                             {stores.map(s => (
                                                 <SelectItem key={s.id} value={s.id}>
-                                                    {s.name} ({variantToPrint[`stock_${s.id}`] || 0} Adet)
+                                                    {s.name} ({isBulkPrint ? bulkStockTotals?.stores[s.id] || 0 : variantToPrint[`stock_${s.id}`] || 0} Adet)
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
