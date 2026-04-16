@@ -178,7 +178,6 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             },
         },
         defaultColumn: {
-        defaultColumn: {
             cell: ({ getValue, row: { index }, column: { id }, table }) => {
                 const initialValue = getValue()
                 const [value, setValue] = React.useState(initialValue)
@@ -196,7 +195,6 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                     />
                 )
             },
-        },
         },
     });
 
