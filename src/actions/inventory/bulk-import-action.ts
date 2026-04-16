@@ -180,31 +180,44 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             }
         }
 
-        // ── 6. Mevcut Varyantları & Stokları Çek ─────────────────────────────
+        // ── 6. Mevcut Varyantları & Stokları Çek (Tüm Model Bazlı) ──────────
+        // HATA ÖNLEME: Sadece Barkod/SKU değil, bu modellerin TÜM varyantlarını çekelim
+        // Böylece kombinasyon (Model+Renk+Beden) kontrolü yapabiliriz.
+        const modelIds = Array.from(modelMap.values());
         const existingVariants = await db.productVariant.findMany({
-            where: {
-                OR: [
-                    { barcode: { in: allBarcodes } },
-                    { sku:     { in: allSkus } }
-                ]
-            },
+            where: { modelId: { in: modelIds } },
             include: { stocks: true }
         });
 
+        // Eşleştirme Haritaları
         const existingBarcodeMap = new Map<string, typeof existingVariants[0]>();
         const existingSkuMap     = new Map<string, typeof existingVariants[0]>();
+        const existingComboMap   = new Map<string, typeof existingVariants[0]>();
+
         for (const v of existingVariants) {
             if (v.barcode) existingBarcodeMap.set(v.barcode, v);
             if (v.sku)     existingSkuMap.set(v.sku, v);
+            
+            // Kombinasyon Anahtarı: ModelId | Renk | Beden
+            const comboKey = `${v.modelId}|${String(v.color || "").trim()}|${String(v.size || "").trim()}`;
+            existingComboMap.set(comboKey, v);
         }
 
-        // ── 7. Upsert Döngüsü ───────────────────────────────────────────────
+        // ── 7. Upsert Döngüsü (Akıllı Eşleştirme) ───────────────────────────
         let variantsCreated = 0;
         let variantsUpdated = 0;
+        let matchedByCombo = 0;
         let stocksIncremented = 0;
 
         for (const p of prepared) {
-            const existing = existingBarcodeMap.get(p.barcode) || existingSkuMap.get(p.sku);
+            // Eşleşme Hiyerarşisi: 1. Barkod, 2. SKU, 3. Kombinasyon
+            let existing = existingBarcodeMap.get(p.barcode) || existingSkuMap.get(p.sku);
+            
+            if (!existing) {
+                const comboKey = `${p.modelId}|${p.color}|${p.size}`;
+                existing = existingComboMap.get(comboKey);
+                if (existing) matchedByCombo++;
+            }
 
             if (existing) {
                 // 1. Fiyatları Güncelle (Sync)
@@ -222,7 +235,6 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                     const incomingQty = Number(p.row[store.name]);
                     if (isNaN(incomingQty) || incomingQty <= 0) continue;
 
-                    const currentStock = existing.stocks.find(s => s.storeId === store.id);
                     await db.stock.upsert({
                         where: {
                             variantId_storeId: {
@@ -241,7 +253,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                 }
             } else {
                 // Yeni Varyant Oluştur
-                const newVar = await db.productVariant.create({
+                await db.productVariant.create({
                     data: {
                         modelId:       p.modelId,
                         color:         p.color,
@@ -264,9 +276,10 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
 
         revalidatePath("/dashboard/products");
 
-        const msg = `🚀 Akıllı Import Tamamlandı!\n\n` +
+        const msg = `💎 Sistem Pırlanta Gibi Oldu!\n\n` +
             `📂 Modeller: ${modelsCreated} Yeni, ${modelsUpdated} Güncellendi\n` +
-            `🏷️ Varyantlar: ${variantsCreated} Yeni, ${variantsUpdated} Fiyatı Senkronize Edildi\n` +
+            `🏷️ Varyantlar: ${variantsCreated} Yeni, ${matchedByCombo} Kombinasyon ile Eşleşti\n` +
+            `🔄 Güncelleme: ${variantsUpdated} Varyant Fiyatı Senkronize Edildi\n` +
             `📦 Stoklar: ${stocksIncremented} Mağaza Stoğu Artırıldı\n` +
             `🚫 Hatalı Satırlar: ${emptyNameRows}`;
 

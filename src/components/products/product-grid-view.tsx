@@ -59,7 +59,7 @@ type GridRow = {
     salePrice: number
     createdAt: Date
     // Tree Props
-    type: "MODEL" | "COLOR" | "VARIANT"
+    type: "BRAND" | "MODEL" | "COLOR" | "VARIANT"
     expanded?: boolean
     depth?: number
     parentId?: string
@@ -275,72 +275,101 @@ export function ProductGrid(props: ProductGridProps) {
 
         if (viewMode === "model_tree") {
             const rows: GridRow[] = [];
-            // Group by Model
-            const models = new Map<string, { model: any, variants: GridRow[] }>(); // model object from products array? No, just use first variant metadata
+            
+            // 1. Group Variants by Brand
+            const brandMap = new Map<string, GridRow[]>();
+            allVariants.forEach(v => {
+                if (!brandMap.has(v.brand)) brandMap.set(v.brand, []);
+                brandMap.get(v.brand)!.push(v);
+            });
 
-            // We need access to original product ID for grouping accurately
-            products.forEach(p => {
-                // Collect variants for this model
-                const productVariants = allVariants.filter(v => v.productId === p.id);
-                if (productVariants.length === 0) return; // Should not happen
-
-                const first = productVariants[0];
-                const modelRow: GridRow = {
-                    ...first,
-                    id: p.id, // Model ID
-                    type: "MODEL",
-                    sku: p.modelCode || "-",
+            brandMap.forEach((brandVariants, brandName) => {
+                const brandId = `brd-${brandName}`;
+                const brandRow: GridRow = {
+                    ...brandVariants[0],
+                    id: brandId,
+                    type: "BRAND" as any,
+                    modelName: brandName,
+                    sku: "-",
                     barcode: "-",
-                    color: "(Modeller)",
+                    color: "-",
                     size: "-",
                     depth: 0,
                     stockTotal: 0
                 };
-
-                // Aggregate totals
-                stores.forEach(s => modelRow[`stock_${s.id}`] = 0);
-                productVariants.forEach(v => {
-                    modelRow.stockTotal += v.stockTotal;
-                    stores.forEach(s => modelRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
+                
+                stores.forEach(s => brandRow[`stock_${s.id}`] = 0);
+                brandVariants.forEach(v => {
+                    brandRow.stockTotal += v.stockTotal;
+                    stores.forEach(s => brandRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
                 });
+                
+                rows.push(brandRow);
 
-                rows.push(modelRow);
-
-                // If Model Expanded
-                if (expandedRows[p.id]) {
-                    // Group Variants by Color
-                    const colors = new Map<string, GridRow[]>();
-                    productVariants.forEach(v => {
-                        if (!colors.has(v.color)) colors.set(v.color, []);
-                        colors.get(v.color)!.push(v);
+                if (expandedRows[brandId]) {
+                    const brandModels = new Map<string, GridRow[]>();
+                    brandVariants.forEach(v => {
+                        if (!brandModels.has(v.productId)) brandModels.set(v.productId, []);
+                        brandModels.get(v.productId)!.push(v);
                     });
 
-                    colors.forEach((vars, colorName) => {
-                        const colorId = `${p.id}-${colorName}`;
-                        const colorRow: GridRow = {
-                            ...vars[0],
-                            id: colorId,
-                            type: "COLOR",
-                            size: "-",
-                            sku: "-",
+                    brandModels.forEach((modelVariants, productId) => {
+                        const first = modelVariants[0];
+                        const modelRow: GridRow = {
+                            ...first,
+                            id: productId,
+                            type: "MODEL",
+                            sku: first.sku || "-",
                             barcode: "-",
+                            color: "-",
+                            size: "-",
                             depth: 1,
-                            parentId: p.id,
+                            parentId: brandId,
                             stockTotal: 0
                         };
-                        // Aggregate Color totals
-                        stores.forEach(s => colorRow[`stock_${s.id}`] = 0);
-                        vars.forEach(v => {
-                            colorRow.stockTotal += v.stockTotal;
-                            stores.forEach(s => colorRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
+                        
+                        stores.forEach(s => modelRow[`stock_${s.id}`] = 0);
+                        modelVariants.forEach(v => {
+                            modelRow.stockTotal += v.stockTotal;
+                            stores.forEach(s => modelRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
                         });
 
-                        rows.push(colorRow);
+                        rows.push(modelRow);
 
-                        // If Color Expanded
-                        if (expandedRows[colorId]) {
-                            vars.forEach(v => {
-                                rows.push({ ...v, depth: 2, parentId: colorId });
+                        if (expandedRows[productId]) {
+                            const colors = new Map<string, GridRow[]>();
+                            modelVariants.forEach(v => {
+                                if (!colors.has(v.color)) colors.set(v.color, []);
+                                colors.get(v.color)!.push(v);
+                            });
+
+                            colors.forEach((vars, colorName) => {
+                                const colorId = `${productId}-${colorName}`;
+                                const colorRow: GridRow = {
+                                    ...vars[0],
+                                    id: colorId,
+                                    type: "COLOR",
+                                    sku: "-",
+                                    barcode: "-",
+                                    size: "-",
+                                    depth: 2,
+                                    parentId: productId,
+                                    stockTotal: 0
+                                };
+                                
+                                stores.forEach(s => colorRow[`stock_${s.id}`] = 0);
+                                vars.forEach(v => {
+                                    colorRow.stockTotal += v.stockTotal;
+                                    stores.forEach(s => colorRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
+                                });
+
+                                rows.push(colorRow);
+
+                                if (expandedRows[colorId]) {
+                                    vars.forEach(v => {
+                                        rows.push({ ...v, depth: 3, parentId: colorId });
+                                    });
+                                }
                             });
                         }
                     });
