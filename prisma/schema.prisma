@@ -106,7 +106,7 @@ model ProductModel {
   // Katman 1: Gender (Erkek, Kadın, Çocuk) - Zaten var
   gender        String?  
   
-  modelCode     String? // New: Manual Model Code
+  modelCode     String? @unique // New: Manual Model Code - Central to hierarchy
   // Katman 2: Category (Ayakkabı, Bot) - Zaten var
   category      String? 
   // Katman 3: SubCategory (Klasik, Spor, Günlük)

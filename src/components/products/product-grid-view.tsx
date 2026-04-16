@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Search, Save, Archive, RefreshCw, Printer, Tag, ArrowRightLeft, Filter, X, Check, Trash2, Pencil, BarChart2 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { bulkArchive, bulkUnarchive, bulkUpdatePrice, bulkDelete } from '@/actions/inventory/bulk-actions'
@@ -35,9 +34,31 @@ import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ExcelImportDialog } from "./excel-import-dialog"
+import { ExcelStagingArea } from "./import/excel-staging-area"
 import { ProductWizard } from "./wizard/product-wizard"
-import { MoreHorizontal, PlusCircle, LayoutList, LayoutGrid, ListTree, ChevronRight, ChevronDown } from "lucide-react"
+import { 
+    MoreHorizontal, 
+    PlusCircle, 
+    LayoutList, 
+    LayoutGrid, 
+    ListTree, 
+    ChevronRight, 
+    ChevronDown, 
+    FileUp, 
+    Search, 
+    Save, 
+    Archive, 
+    RefreshCw, 
+    Printer, 
+    Tag, 
+    ArrowRightLeft, 
+    Filter, 
+    X, 
+    Check, 
+    Trash2, 
+    Pencil, 
+    BarChart2 
+} from "lucide-react"
 
 // View Modes
 type ViewMode = "flat" | "model_tree" | "color_grouped"
@@ -202,6 +223,7 @@ export function ProductGrid(props: ProductGridProps) {
     const [printStoreId, setPrintStoreId] = React.useState<string>("all")
     const [isBulkPrint, setIsBulkPrint] = React.useState(false)
     const [bulkStockTotals, setBulkStockTotals] = React.useState<{ total: number, stores: Record<string, number> } | null>(null)
+    const [stagingOpen, setStagingOpen] = React.useState(false)
 
     // Wizard State
     const [wizardOpen, setWizardOpen] = React.useState(false)
@@ -726,6 +748,14 @@ export function ProductGrid(props: ProductGridProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-xs border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50"
+                            onClick={() => setStagingOpen(true)}
+                        >
+                            <FileUp className="w-3 h-3 mr-1" /> Excel Engine
+                        </Button>
                         <Button onClick={() => {
                             setWizardMode("create");
                             setWizardData(null);
@@ -841,13 +871,20 @@ export function ProductGrid(props: ProductGridProps) {
                 </Button>
 
                 <div className="w-[1px] h-4 bg-gray-300 my-auto mx-1" />
-                <ExcelImportDialog stores={stores} onSuccess={() => router.refresh()} />
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 text-xs hover:bg-white text-indigo-700 bg-indigo-50/30 border border-indigo-100"
+                    onClick={() => setStagingOpen(true)}
+                >
+                    <FileUp className="w-3 h-3 mr-1" /> Excel Engine
+                </Button>
 
                 <Button variant="ghost" size="sm" onClick={handleBulkPrint} disabled={selectedIds.length === 0} className="h-7 text-xs hover:bg-white"><Printer className="w-3 h-3 mr-1" /> Yazdır</Button>
 
                 <div className="w-[1px] h-4 bg-gray-300 my-auto mx-1" />
 
-                <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+                <Select value={viewMode} onValueChange={(v: ViewMode) => setViewMode(v)}>
                     <SelectTrigger className="h-7 text-xs border-none bg-transparent hover:bg-white w-[140px]">
                         <SelectValue placeholder="Görünüm" />
                     </SelectTrigger>
@@ -1111,6 +1148,15 @@ export function ProductGrid(props: ProductGridProps) {
                 </DialogContent>
             </Dialog>
 
+            {/* Excel Staging Area */}
+            <ExcelStagingArea 
+                isOpen={stagingOpen} 
+                onClose={() => {
+                    setStagingOpen(false)
+                    // Mutate products if needed
+                }} 
+                stores={stores} 
+            />
         </div>
     )
 }
