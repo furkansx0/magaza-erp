@@ -80,6 +80,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                 Object.keys(row).forEach(k => {
                     newRow[k.trim()] = row[k];
                 });
+                newRow["__id"] = crypto.randomUUID(); // Stable ID for rendering and deletion
                 return newRow;
             });
 
@@ -114,7 +115,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                         variant="ghost" 
                         size="icon" 
                         className="h-6 w-6 text-red-500 hover:text-red-700"
-                        onClick={() => handleDeleteRow(row.index)}
+                        onClick={() => handleDeleteRow(row.original.__id)}
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
@@ -161,7 +162,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
-        getRowId: (row, i) => `${row["Barkod"]}-${row["Model Kodu"]}-${row["Renk"]}-${row["Beden"]}-${i}`,
+        getRowId: (row) => row.__id || Math.random().toString(),
         meta: {
             updateData: (rowIndex: number, columnId: string, value: any) => {
                 setData(old =>
@@ -204,9 +205,8 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
     });
 
     // Sub-actions
-    const handleDeleteRow = (index: number) => {
-        const newData = [...data];
-        newData.splice(index, 1);
+    const handleDeleteRow = (id: string) => {
+        const newData = data.filter(r => r.__id !== id);
         setData(newData);
         validateData(newData);
     }
@@ -341,52 +341,49 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             <main className="flex-1 overflow-hidden relative bg-zinc-100">
                 {data.length > 0 ? (
                     <div ref={parentRef} className="h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-300">
-                        <div style={{ minWidth: `${table.getTotalSize()}px`, position: 'relative' }}>
-                            <table className="w-full border-collapse bg-white table-auto">
-                                <thead className="sticky top-0 z-20 bg-white ring-1 ring-gray-200">
-                                    {table.getHeaderGroups().map(headerGroup => (
-                                        <tr key={headerGroup.id}>
-                                            {headerGroup.headers.map(header => (
-                                                <th 
-                                                    key={header.id} 
-                                                    className="h-10 px-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-r last:border-r-0 bg-gray-50/50"
-                                                    style={{ width: header.getSize() }}
-                                                >
-                                                    {header.isPlaceholder ? null : (flexRender(header.column.columnDef.header, header.getContext()) as React.ReactNode)}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    ))}
-                                </thead>
-                                <tbody>
-                                    {rowVirtualizer.getVirtualItems().map(virtualRow => {
-                                        const row = rows[virtualRow.index];
-                                        return (
-                                            <tr 
-                                                key={row.id} 
-                                                className="hover:bg-blue-50/30 transition-colors group"
-                                                style={{
-                                                    position: 'absolute',
-                                                    top: 0,
-                                                    left: 0,
-                                                    width: '100%',
-                                                    height: `${virtualRow.size}px`,
-                                                    transform: `translateY(${virtualRow.start}px)`,
-                                                }}
+                        <div style={{ height: `${rowVirtualizer.getTotalSize() + 40}px`, minWidth: `${table.getTotalSize()}px`, position: 'relative' }}>
+                            {/* Header */}
+                            <div className="sticky top-0 z-30 flex bg-gray-50 border-b w-full">
+                                {table.getHeaderGroups().map(headerGroup => (
+                                    <React.Fragment key={headerGroup.id}>
+                                        {headerGroup.headers.map(header => (
+                                            <div 
+                                                key={header.id} 
+                                                className="h-10 px-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider border-r last:border-r-0 flex items-center bg-gray-50"
+                                                style={{ width: header.getSize() }}
                                             >
-                                                {row.getVisibleCells().map(cell => (
-                                                    <td 
-                                                        key={cell.id} 
-                                                        className="px-3 border-b border-r last:border-r-0 text-xs overflow-hidden text-ellipsis whitespace-nowrap"
-                                                    >
-                                                        {flexRender(cell.column.columnDef.cell, cell.getContext()) as React.ReactNode}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                {header.isPlaceholder ? null : (flexRender(header.column.columnDef.header, header.getContext()) as React.ReactNode)}
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+
+                            {/* Body Rows */}
+                            {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                                const row = rows[virtualRow.index];
+                                if (!row) return null;
+                                return (
+                                    <div 
+                                        key={row.id} 
+                                        className="flex hover:bg-blue-50/30 transition-colors group bg-white border-b absolute left-0 w-full"
+                                        style={{
+                                            height: `${virtualRow.size}px`,
+                                            transform: `translateY(${virtualRow.start + 40}px)`,
+                                        }}
+                                    >
+                                        {row.getVisibleCells().map(cell => (
+                                            <div 
+                                                key={cell.id} 
+                                                className="px-3 border-r last:border-r-0 text-xs overflow-hidden text-ellipsis whitespace-nowrap flex items-center"
+                                                style={{ width: cell.column.getSize() }}
+                                            >
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext()) as React.ReactNode}
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 ) : (
