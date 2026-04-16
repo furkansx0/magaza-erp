@@ -243,36 +243,41 @@ export function ProductGrid(props: ProductGridProps) {
         // 1. Base Flattening (Variant Level)
         const allVariants: GridRow[] = []
         products.forEach(p => {
-            p.variants.forEach(v => {
-                const row: GridRow = {
-                    id: v.id,
-                    productId: p.id,
-                    modelName: p.name,
-                    sku: v.sku || "",
-                    barcode: v.barcode,
-                    color: v.color || "-",
-                    size: v.size || "-",
-                    brand: p.brand || "-",
-                    category: p.category || "-",
-                    subCategory: p.subCategory || "-",
-                    season: p.season || "-",
-                    stockTotal: 0,
-                    purchasePrice: Number(v.purchasePrice),
-                    salePrice: Number(v.salePrice),
-                    createdAt: new Date(p.createdAt),
-                    type: "VARIANT",
-                    depth: 0
-                }
+            p.colors.forEach(c => {
+                c.variants.forEach(v => {
+                    const row: GridRow = {
+                        id: v.id,
+                        productId: p.id,
+                        modelName: (p as any).name, // Model name
+                        modelCode: (p as any).modelCode,
+                        sku: v.sku || "",
+                        barcode: v.barcode,
+                        color: c.name, // Color from ProductColor
+                        size: v.size || "-",
+                        brand: (p as any).brand || "-",
+                        gender: (p as any).gender || "-",
+                        category: (p as any).category || "-",
+                        subCategory: (p as any).subCategory || "-",
+                        seasonType: (p as any).seasonType || "-",
+                        seasonYear: (p as any).seasonYear || "-",
+                        stockTotal: 0,
+                        purchasePrice: Number(v.purchasePrice),
+                        salePrice: Number(v.salePrice),
+                        createdAt: new Date(p.createdAt),
+                        type: "VARIANT",
+                        depth: 0
+                    }
 
-                let total = 0
-                stores.forEach(s => {
-                    const st = v.stocks.find(stock => stock.storeId === s.id)
-                    const qty = st?.quantity || 0
-                    row[`stock_${s.id}`] = qty
-                    total += qty
+                    let total = 0
+                    stores.forEach(s => {
+                        const st = v.stocks.find(stock => stock.storeId === s.id)
+                        const qty = st?.quantity || 0
+                        row[`stock_${s.id}`] = qty
+                        total += qty
+                    })
+                    row.stockTotal = total
+                    allVariants.push(row)
                 })
-                row.stockTotal = total
-                allVariants.push(row)
             })
         })
 
@@ -280,16 +285,15 @@ export function ProductGrid(props: ProductGridProps) {
         if (viewMode === "flat") return allVariants;
 
         if (viewMode === "color_grouped") {
-            // Group by Model + Color
             const groups = new Map<string, GridRow>();
             allVariants.forEach(v => {
-                const key = `${v.modelName}-${v.color}`;
+                const key = `${v.modelCode}-${v.color}`;
                 if (!groups.has(key)) {
                     groups.set(key, { ...v, type: "COLOR", size: "(Tümü)", id: `grp-${key}` });
                 } else {
                     const g = groups.get(key)!;
                     g.stockTotal += v.stockTotal;
-                    stores.forEach(s => { g[`stock_${s.id}`] += v[`stock_${s.id}`] });
+                    stores.forEach(s => { g[`stock_${s.id}`] += (v[`stock_${s.id}`] || 0) });
                 }
             });
             return Array.from(groups.values());
@@ -298,7 +302,7 @@ export function ProductGrid(props: ProductGridProps) {
         if (viewMode === "model_tree") {
             const rows: GridRow[] = [];
             
-            // 1. Group Variants by Brand
+            // Group by Brand
             const brandMap = new Map<string, GridRow[]>();
             allVariants.forEach(v => {
                 if (!brandMap.has(v.brand)) brandMap.set(v.brand, []);
@@ -323,7 +327,7 @@ export function ProductGrid(props: ProductGridProps) {
                 stores.forEach(s => brandRow[`stock_${s.id}`] = 0);
                 brandVariants.forEach(v => {
                     brandRow.stockTotal += v.stockTotal;
-                    stores.forEach(s => brandRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
+                    stores.forEach(s => brandRow[`stock_${s.id}`] += (v[`stock_${s.id}`] || 0));
                 });
                 
                 rows.push(brandRow);
@@ -341,7 +345,7 @@ export function ProductGrid(props: ProductGridProps) {
                             ...first,
                             id: productId,
                             type: "MODEL",
-                            sku: first.sku || "-",
+                            sku: first.modelCode || "-",
                             barcode: "-",
                             color: "-",
                             size: "-",
@@ -353,7 +357,7 @@ export function ProductGrid(props: ProductGridProps) {
                         stores.forEach(s => modelRow[`stock_${s.id}`] = 0);
                         modelVariants.forEach(v => {
                             modelRow.stockTotal += v.stockTotal;
-                            stores.forEach(s => modelRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
+                            stores.forEach(s => modelRow[`stock_${s.id}`] += (v[`stock_${s.id}`] || 0));
                         });
 
                         rows.push(modelRow);
@@ -382,7 +386,7 @@ export function ProductGrid(props: ProductGridProps) {
                                 stores.forEach(s => colorRow[`stock_${s.id}`] = 0);
                                 vars.forEach(v => {
                                     colorRow.stockTotal += v.stockTotal;
-                                    stores.forEach(s => colorRow[`stock_${s.id}`] += v[`stock_${s.id}`]);
+                                    stores.forEach(s => colorRow[`stock_${s.id}`] += (v[`stock_${s.id}`] || 0));
                                 });
 
                                 rows.push(colorRow);
@@ -403,18 +407,22 @@ export function ProductGrid(props: ProductGridProps) {
         return allVariants;
     }, [products, stores, viewMode, expandedRows])
 
-    // Derive Options (Client side filtering for now)
+    // Derive Options (Client side filtering)
     const uniqueBrands = React.useMemo(() => Array.from(new Set(data.map(r => r.brand).filter(Boolean))).sort(), [data])
     const uniqueCategories = React.useMemo(() => Array.from(new Set(data.map(r => r.category).filter(Boolean))).sort(), [data])
     const uniqueSubCategories = React.useMemo(() => Array.from(new Set(data.map(r => r.subCategory).filter(Boolean))).sort(), [data])
-    const uniqueSeasons = React.useMemo(() => Array.from(new Set(data.map(r => r.season).filter(Boolean))).sort(), [data])
+    const uniqueSeasonTypes = React.useMemo(() => Array.from(new Set(data.map(r => r.seasonType).filter(Boolean))).sort(), [data])
+    const uniqueSeasonYears = React.useMemo(() => Array.from(new Set(data.map(r => r.seasonYear).filter(Boolean))).sort(), [data])
+    const uniqueGenders = React.useMemo(() => Array.from(new Set(data.map(r => r.gender).filter(Boolean))).sort(), [data])
     const uniqueColors = React.useMemo(() => Array.from(new Set(data.map(r => r.color).filter(Boolean))).sort(), [data])
     const uniqueSizes = React.useMemo(() => Array.from(new Set(data.map(r => r.size).filter(Boolean))).sort(), [data])
 
     const [selectedCategories, setSelectedCategories] = React.useState<string[]>([])
     const [selectedSubCategories, setSelectedSubCategories] = React.useState<string[]>([])
     const [selectedBrands, setSelectedBrands] = React.useState<string[]>([])
-    const [selectedSeasons, setSelectedSeasons] = React.useState<string[]>([]) // New State
+    const [selectedSeasonTypes, setSelectedSeasonTypes] = React.useState<string[]>([])
+    const [selectedSeasonYears, setSelectedSeasonYears] = React.useState<string[]>([])
+    const [selectedGenders, setSelectedGenders] = React.useState<string[]>([])
     const [selectedColors, setSelectedColors] = React.useState<string[]>([])
     const [selectedSizes, setSelectedSizes] = React.useState<string[]>([])
     const [selectedStore, setSelectedStore] = React.useState("all")
@@ -429,6 +437,7 @@ export function ProductGrid(props: ProductGridProps) {
             const lower = searchTerm.toLowerCase()
             filtered = filtered.filter(r =>
                 r.modelName.toLowerCase().includes(lower) ||
+                r.modelCode?.toLowerCase().includes(lower) ||
                 r.sku.toLowerCase().includes(lower) ||
                 r.barcode.includes(lower)
             )
@@ -437,42 +446,35 @@ export function ProductGrid(props: ProductGridProps) {
         if (selectedCategories.length > 0) filtered = filtered.filter(r => selectedCategories.includes(r.category))
         if (selectedSubCategories.length > 0) filtered = filtered.filter(r => selectedSubCategories.includes(r.subCategory))
         if (selectedBrands.length > 0) filtered = filtered.filter(r => selectedBrands.includes(r.brand))
-        if (selectedSeasons.length > 0) filtered = filtered.filter(r => selectedSeasons.includes(r.season)) // Filter
+        if (selectedSeasonTypes.length > 0) filtered = filtered.filter(r => selectedSeasonTypes.includes(r.seasonType))
+        if (selectedSeasonYears.length > 0) filtered = filtered.filter(r => selectedSeasonYears.includes(r.seasonYear))
+        if (selectedGenders.length > 0) filtered = filtered.filter(r => selectedGenders.includes(r.gender))
         if (selectedColors.length > 0) filtered = filtered.filter(r => selectedColors.includes(r.color))
         if (selectedSizes.length > 0) filtered = filtered.filter(r => selectedSizes.includes(r.size))
         if (selectedStore !== "all") filtered = filtered.filter(r => r[`stock_${selectedStore}`] > 0)
 
-        // Sorting (Optimized)
+        // Sorting
         if (sortOption !== "default") {
             filtered.sort((a, b) => {
                 if (sortOption === "name_asc") return a.modelName.localeCompare(b.modelName)
-
                 if (sortOption === "stock_asc") return a.stockTotal - b.stockTotal
                 if (sortOption === "stock_desc") return b.stockTotal - a.stockTotal
-
                 if (sortOption === "price_in_asc") return a.purchasePrice - b.purchasePrice
                 if (sortOption === "price_in_desc") return b.purchasePrice - a.purchasePrice
-
                 if (sortOption === "price_out_asc") return a.salePrice - b.salePrice
                 if (sortOption === "price_out_desc") return b.salePrice - a.salePrice
-
-                // New Options
                 if (sortOption === "date_newest") return b.createdAt.getTime() - a.createdAt.getTime()
                 if (sortOption === "date_oldest") return a.createdAt.getTime() - b.createdAt.getTime()
-
                 if (sortOption === "brand_asc") return a.brand.localeCompare(b.brand)
-
                 if (sortOption === "category_asc") return a.category.localeCompare(b.category)
-
                 if (sortOption === "margin_desc") return (b.salePrice - b.purchasePrice) - (a.salePrice - a.purchasePrice)
                 if (sortOption === "margin_asc") return (a.salePrice - a.purchasePrice) - (b.salePrice - b.purchasePrice)
-
                 return 0
             })
         }
 
         setFilteredData(filtered)
-    }, [searchTerm, selectedCategories, selectedBrands, selectedSeasons, selectedColors, selectedSizes, selectedStore, sortOption, data])
+    }, [searchTerm, selectedCategories, selectedBrands, selectedSeasonTypes, selectedSeasonYears, selectedGenders, selectedColors, selectedSizes, selectedStore, sortOption, data])
 
     // Handlers
     const toggleSelectAll = () => {
@@ -800,7 +802,9 @@ export function ProductGrid(props: ProductGridProps) {
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Tür" options={uniqueCategories} selected={selectedCategories} onChange={setSelectedCategories} /></div>
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Detay" options={uniqueSubCategories} selected={selectedSubCategories} onChange={setSelectedSubCategories} /></div>
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Marka" options={uniqueBrands} selected={selectedBrands} onChange={setSelectedBrands} /></div>
-                        <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Sezon" options={uniqueSeasons} selected={selectedSeasons} onChange={setSelectedSeasons} /></div>
+                        <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Mevsim" options={uniqueSeasonTypes} selected={selectedSeasonTypes} onChange={setSelectedSeasonTypes} /></div>
+                        <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Sezon" options={uniqueSeasonYears} selected={selectedSeasonYears} onChange={setSelectedSeasonYears} /></div>
+                        <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Cinsiyet" options={uniqueGenders} selected={selectedGenders} onChange={setSelectedGenders} /></div>
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Renk" options={uniqueColors} selected={selectedColors} onChange={setSelectedColors} /></div>
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Beden" options={uniqueSizes} selected={selectedSizes} onChange={setSelectedSizes} /></div>
 
@@ -857,7 +861,7 @@ export function ProductGrid(props: ProductGridProps) {
                 </Dialog>
                 <Button variant="ghost" size="sm" onClick={handleBulkDelete} disabled={selectedIds.length === 0} className="h-7 text-xs hover:bg-white hover:text-red-700 text-red-600"><Trash2 className="w-3 h-3 mr-1" /> Sil</Button>
                 <div className="w-[1px] h-4 bg-gray-300 my-auto mx-1" />
-                <Button variant="ghost" size="sm" onClick={handleBulkArchive} disabled={selectedIds.length === 0} className="h-7 text-xs hover:bg-white hover:text-orange-600"><Archive className="w-3 h-3 mr-1" /> Arşiv</Button>
+                <Button variant="ghost" size="sm" onClick={handleBulkArchive} disabled={selectedIds.length === 0} className="h-7 text-xs hover:bg-white hover:橙-600"><Archive className="w-3 h-3 mr-1" /> Arşiv</Button>
 
                 <Button variant="ghost" size="sm" onClick={handleExportExcel} className="h-7 text-xs hover:bg-white hover:text-green-700 text-green-700 bg-green-50/50 border border-green-200/50">
                     <Filter className="w-3 h-3 mr-1" /> Excel'e Aktar
@@ -912,7 +916,7 @@ export function ProductGrid(props: ProductGridProps) {
                             { id: 'color', label: 'Renk' },
                             { id: 'size', label: 'Beden' },
                             { id: 'brand', label: 'Marka' },
-                            { id: 'season', label: 'Sezon' },
+                            { id: 'season', label: 'Mevsim/Sezon' },
                             { id: 'priceIn', label: 'Alış', align: 'right' },
                             { id: 'priceOut', label: 'Satış', align: 'right' },
                         ].map(col => (
@@ -977,7 +981,9 @@ export function ProductGrid(props: ProductGridProps) {
                                 <div className="px-2 border-r h-full flex items-center overflow-hidden text-ellipsis">{row.color}</div>
                                 <div className="px-2 border-r h-full flex items-center font-bold overflow-hidden text-ellipsis">{row.size}</div>
                                 <div className="px-2 border-r h-full flex items-center overflow-hidden text-ellipsis">{row.brand}</div>
-                                <div className="px-2 border-r h-full flex items-center text-gray-500 text-[10px] overflow-hidden text-ellipsis">{row.season}</div>
+                                <div className="px-2 border-r h-full flex items-center text-gray-500 text-[10px] overflow-hidden text-ellipsis">
+                                    {row.seasonType} / {row.seasonYear}
+                                </div>
                                 <div className="px-2 border-r h-full flex items-center justify-end font-mono text-gray-500 overflow-hidden text-ellipsis">{formatCurrency(row.purchasePrice)}</div>
                                 <div className="px-2 border-r h-full flex items-center justify-end font-bold text-green-700 font-mono bg-green-50/50 overflow-hidden text-ellipsis">{formatCurrency(row.salePrice)}</div>
                                 {visibleStores.map(s => (

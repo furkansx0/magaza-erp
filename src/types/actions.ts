@@ -20,8 +20,12 @@ export type ActivityTypeFilter = "ALL" | "SALE" | "EXCHANGE" | "RETURN";
 
 export type ProductWithVariants = Prisma.ProductModelGetPayload<{
     include: {
-        variants: {
-            include: { stocks: true }
+        colors: {
+            include: {
+                variants: {
+                    include: { stocks: true }
+                }
+            }
         }
     }
 }>;

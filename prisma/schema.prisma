@@ -102,47 +102,56 @@ model ProductModel {
   brand         String?  // "Polo"
   description   String?
   
-  // Hiyerarşik Yapı (Sahibinden.com Mantığı)
-  // Katman 1: Gender (Erkek, Kadın, Çocuk) - Zaten var
   gender        String?  
-  
-  modelCode     String? @unique // New: Manual Model Code - Central to hierarchy
-  // Katman 2: Category (Ayakkabı, Bot) - Zaten var
+  modelCode     String? @unique // Manual Model Code - Central to hierarchy
   category      String? 
-  // Katman 3: SubCategory (Klasik, Spor, Günlük)
   subCategory   String?
 
-  // Yeni: Sezon (2024 Yaz, 2025 Kış vb.)
-  season        String?
+  // Mevsim (Yazlık, Kışlık, 4 Mevsim)
+  seasonType    String?
+  // Sezon/Yıl (2024 Yaz, 2025 Kış vb.)
+  seasonYear    String?
+  
   material      String?
   style         String?
   
-
   // Katman 4: Özellikler (Dynamic Attributes)
-  // JSON String: {"material": "Deri", "season": "2024 Yaz", "lining": "Yün"}
+  // JSON String: {"lining": "Yün", "sole": "Kauçuk"}
   attributes    String?  
   
   isArchived    Boolean  @default(false)
 
-  variants      ProductVariant[]
+  colors        ProductColor[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  images        ProductImage[]
+}
+
+model ProductColor {
+  id        String   @id @default(uuid())
+  name      String   // "Siyah", "Kırmızı"
+  
+  modelId   String
+  model     ProductModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  
+  variants  ProductVariant[]
+  images    ProductImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([modelId, name])
 }
 
 model ProductImage {
   id        String   @id @default(uuid())
   url       String
-  color     String   // "Siyah" - Links to Variant Group Color
   
-  modelId   String
-  model     ProductModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  colorId   String
+  color     ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  @@index([modelId, color])
 }
 
 model ProductVariant {
@@ -150,7 +159,6 @@ model ProductVariant {
   barcode       String   @unique
   sku           String?  // Giyim kodu örn: GR10450-KIR-S
   
-  color         String?  // "Kırmızı", "Lacivert"
   size          String?  // "S", "M", "36", "42"
   
   purchasePrice Decimal  
@@ -159,8 +167,8 @@ model ProductVariant {
   
   isArchived    Boolean  @default(false)
   
-  modelId       String
-  model         ProductModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  colorId       String
+  color         ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
   
   stocks        Stock[]
   saleItems     SaleItem[]

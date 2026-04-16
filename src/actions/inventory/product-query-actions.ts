@@ -10,38 +10,14 @@ type ProductFilterParams = {
     brand?: string[];
     category?: string[];
     gender?: string[];
-    season?: string[];
+    seasonType?: string[]; // Yazlık, Kışlık, 4 Mevsim
+    seasonYear?: string[]; // 2024 Yaz, etc.
     material?: string[];
     subCategory?: string[];
     minPrice?: number;
     maxPrice?: number;
-    showArchived?: boolean; // New param
+    showArchived?: boolean;
 }
-
-type ProductWithVariants = Prisma.ProductModelGetPayload<{
-    include: {
-        variants: {
-            select: {
-                id: true
-                modelId: true
-                color: true
-                size: true
-                sku: true
-                barcode: true
-                purchasePrice: true
-                salePrice: true
-                secondPrice: true
-                isArchived: true
-                stocks: {
-                    select: {
-                        storeId: true
-                        quantity: true
-                    }
-                }
-            }
-        }
-    }
-}>
 
 export async function getProductsWithFilters(params: ProductFilterParams) {
     try {
@@ -53,27 +29,34 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
         const where: Prisma.ProductModelWhereInput = {};
 
         if (showArchived) {
-            // If we want archived items, look for models that have ANY archived variants
-            // OR models that are themselves archived (which usually implies all variants are archived).
             where.OR = [
                 { isArchived: true },
-                { variants: { some: { isArchived: true } } }
+                { colors: { some: { variants: { some: { isArchived: true } } } } }
             ];
         } else {
-            // Standard view: Active models only
             where.isArchived = false;
         }
 
-        // Text Search (Name or Variant Barcode/SKU)
+        // Text Search
         if (params.search) {
             where.OR = [
-                { name: { contains: params.search } }, // SQLite is case-insensitive by default in many configs, but usually safe to assume standard contains
+                { name: { contains: params.search, mode: 'insensitive' } },
+                { modelCode: { contains: params.search, mode: 'insensitive' } },
                 {
-                    variants: {
+                    colors: {
                         some: {
                             OR: [
-                                { barcode: { contains: params.search } },
-                                { sku: { contains: params.search } }
+                                { name: { contains: params.search, mode: 'insensitive' } },
+                                {
+                                    variants: {
+                                        some: {
+                                            OR: [
+                                                { barcode: { contains: params.search } },
+                                                { sku: { contains: params.search, mode: 'insensitive' } }
+                                            ]
+                                        }
+                                    }
+                                }
                             ]
                         }
                     }
@@ -82,44 +65,21 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
         }
 
         // Filters
-        if (params.brand && params.brand.length > 0) {
-            where.brand = { in: params.brand };
-        }
+        if (params.brand && params.brand.length > 0) where.brand = { in: params.brand };
+        if (params.category && params.category.length > 0) where.category = { in: params.category };
+        if (params.subCategory && params.subCategory.length > 0) where.subCategory = { in: params.subCategory };
+        if (params.gender && params.gender.length > 0) where.gender = { in: params.gender };
+        if (params.seasonType && params.seasonType.length > 0) where.seasonType = { in: params.seasonType };
+        if (params.seasonYear && params.seasonYear.length > 0) where.seasonYear = { in: params.seasonYear };
 
-        if (params.category && params.category.length > 0) {
-            where.category = { in: params.category };
-        }
-
-        if (params.subCategory && params.subCategory.length > 0) {
-            where.subCategory = { in: params.subCategory };
-        }
-
-        if (params.gender && params.gender.length > 0) {
-            where.gender = { in: params.gender };
-        }
-
-        // Dynamic Attributes (JSON Filter)
-        // SQLite has limited JSON support in Prisma. We might need raw query or handling it carefully.
-        // For now, let's try basic contains for stringified JSON if Prisma doesn't support deep JSON filtering on SQLite easily.
-        // OR better: Since we stored attributes as a string field in ProductModel (based on my previous edit),
-        // we can use `contains`.
-        // Ideally we should use Json type if DB supports it, but I defined it as String? for safety in SQLite.
-
-        if (params.season && params.season.length > 0) {
-            where.season = { in: params.season };
-        }
-
-        if (params.material && params.material.length > 0) {
-            where.material = { in: params.material };
-        }
-
-        // Price Filter (Needs to check Variants)
+        // Price Filter
         if (params.minPrice !== undefined || params.maxPrice !== undefined) {
-            where.variants = {
+            where.colors = {
                 some: {
-                    salePrice: {
-                        gte: params.minPrice,
-                        lte: params.maxPrice
+                    variants: {
+                        some: {
+                            salePrice: { gte: params.minPrice, lte: params.maxPrice }
+                        }
                     }
                 }
             };
@@ -129,25 +89,14 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
             db.productModel.findMany({
                 where,
                 include: {
-                    variants: {
-                        where: { isArchived: showArchived },
-                        select: {
-                            id: true,
-                            modelId: true,
-                            color: true,
-                            size: true,
-                            sku: true,
-                            barcode: true,
-                            purchasePrice: true,
-                            salePrice: true,
-                            secondPrice: true,
-                            isArchived: true,
-                            // image: schema'da ProductVariant tablosunda bu alan yok;
-                            // görseller ProductImage tablosundan model üzerinden geliyor.
-                            stocks: {
-                                select: {
-                                    storeId: true,
-                                    quantity: true
+                    colors: {
+                        include: {
+                            variants: {
+                                where: { isArchived: showArchived },
+                                include: {
+                                    stocks: {
+                                        select: { storeId: true, quantity: true }
+                                    }
                                 }
                             }
                         }
@@ -155,22 +104,22 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
                 },
                 skip,
                 take: limit,
-                orderBy: { createdAt: 'desc' }
+                orderBy: { updatedAt: 'desc' }
             }),
             db.productModel.count({ where })
         ]);
 
-        // Aggregate Metadata for Facets (Facets should ideally come from a cached summary or separate query)
-        // For now, we will just return the data. Facets can be fetched separately or derived.
-
-        // Transform Decimal to Number for Client Component Serialization
+        // Transform Decimals
         const serializedProducts = products.map(product => ({
             ...product,
-            variants: product.variants.map(v => ({
-                ...v,
-                purchasePrice: Number(v.purchasePrice),
-                salePrice: Number(v.salePrice),
-                secondPrice: v.secondPrice ? Number(v.secondPrice) : null
+            colors: product.colors.map(color => ({
+                ...color,
+                variants: color.variants.map(v => ({
+                    ...v,
+                    purchasePrice: Number(v.purchasePrice),
+                    salePrice: Number(v.salePrice),
+                    secondPrice: v.secondPrice ? Number(v.secondPrice) : null
+                }))
             }))
         }));
 

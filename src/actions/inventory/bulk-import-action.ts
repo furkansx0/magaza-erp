@@ -6,14 +6,16 @@ import { generateNextBarcodes } from "./barcode-actions";
 
 export interface SmartImportRow {
     gender: string;
-    season: string;
-    category: string;
-    subCategory: string;
-    modelCode: string;
     brand?: string;
+    seasonType: string; // Mevsim (Yazlık, Kışlık, 4 Mevsim)
+    seasonYear: string; // Sezon (2024 Yaz, 2025 Kış vb.)
+    category: string;   // Ana Kategori
+    subCategory: string; // Alt Kategori
+    modelCode: string;
     color: string;
     size: string;
     barcode?: string;
+    sku?: string;
     purchasePrice: number;
     salePrice: number;
     operationType: "EKLE" | "GÜNCELLE";
@@ -25,6 +27,7 @@ export interface ImportReport {
     summary: {
         totalRows: number;
         modelsCreated: number;
+        colorsCreated: number;
         variantsCreated: number;
         stocksUpdated: number;
         failedRows: number;
@@ -33,12 +36,12 @@ export interface ImportReport {
 }
 
 /**
- * Smart Retail Engine V4 - Bulk Import Action
+ * Smart Retail Engine V5 - Bulk Import Action (Professional Hierarchy)
  */
 export async function runSmartImport(rows: SmartImportRow[], stores: { id: string, name: string }[]): Promise<ImportReport> {
     const report: ImportReport = {
         success: true,
-        summary: { totalRows: rows.length, modelsCreated: 0, variantsCreated: 0, stocksUpdated: 0, failedRows: 0 },
+        summary: { totalRows: rows.length, modelsCreated: 0, colorsCreated: 0, variantsCreated: 0, stocksUpdated: 0, failedRows: 0 },
         logs: []
     };
 
@@ -65,16 +68,22 @@ export async function runSmartImport(rows: SmartImportRow[], stores: { id: strin
                 ? r.barcode.trim() 
                 : generatedBarcodes[barcodeIdx++];
             
+            // Auto-generate SKU if missing
+            const sku = (r.sku && r.sku.trim() !== "")
+                ? r.sku.trim()
+                : `${r.modelCode}-${r.color}-${r.size}`.toUpperCase();
+            
             return {
                 ...r,
                 modelCode: r.modelCode.trim().toUpperCase(),
-                barcode: barcode.trim()
+                barcode: barcode.trim(),
+                sku: sku.trim()
             };
         });
 
         // 2. Transactional Process
         await db.$transaction(async (tx) => {
-            // Group by Model Code to minimize lookups
+            // Group by Model Code
             const modelGroups = new Map<string, typeof normalizedRows>();
             for (const r of normalizedRows) {
                 if (!modelGroups.has(r.modelCode)) modelGroups.set(r.modelCode, []);
@@ -84,84 +93,102 @@ export async function runSmartImport(rows: SmartImportRow[], stores: { id: strin
             for (const [mCode, mRows] of modelGroups) {
                 const first = mRows[0];
                 
-                // A. Model Upsert
+                // A. Level 1: Model Upsert
                 const model = await tx.productModel.upsert({
-                    where: { modelCode: mCode } as any, // Cast to any to bypass strict ID requirement if generator is lagging
+                    where: { modelCode: mCode },
                     create: {
                         modelCode: mCode,
-                        name: mCode, // Use modelCode as name
+                        name: mCode,
                         brand: first.brand || "Genel",
                         gender: first.gender,
-                        season: first.season,
+                        seasonYear: first.seasonYear,
+                        seasonType: first.seasonType,
                         category: first.category,
                         subCategory: first.subCategory,
-                        description: "Smart Engine Import",
+                        description: "Smart Engine Import V5",
                     },
                     update: {
-                        name: mCode, // Sync name with code
+                        brand: first.brand || "Genel",
                         gender: first.gender,
-                        season: first.season,
+                        seasonYear: first.seasonYear,
+                        seasonType: first.seasonType,
                         category: first.category,
                         subCategory: first.subCategory,
                     }
                 });
 
-                if (model.createdAt === model.updatedAt) report.summary.modelsCreated++;
+                if (model.createdAt.getTime() === model.updatedAt.getTime()) report.summary.modelsCreated++;
 
-                // B. Variants & Stocks
+                // Group by Color within Model
+                const colorGroups = new Map<string, typeof mRows>();
                 for (const r of mRows) {
-                    try {
-                        // Variant Upsert
-                        const variant = await tx.productVariant.upsert({
-                            where: { barcode: r.barcode },
-                            create: {
-                                modelId: model.id,
-                                barcode: r.barcode,
-                                color: r.color,
-                                size: r.size,
-                                purchasePrice: r.purchasePrice,
-                                salePrice: r.salePrice,
-                                sku: `${mCode}-${r.color}-${r.size}`.toUpperCase()
-                            },
-                            update: {
-                                purchasePrice: r.purchasePrice,
-                                salePrice: r.salePrice,
-                                color: r.color,
-                                size: r.size,
-                            }
-                        });
+                    const cKey = r.color.trim().toUpperCase();
+                    if (!colorGroups.has(cKey)) colorGroups.set(cKey, []);
+                    colorGroups.get(cKey)!.push(r);
+                }
 
-                        if (variant.createdAt === variant.updatedAt) report.summary.variantsCreated++;
+                for (const [colorName, cRows] of colorGroups) {
+                    // B. Level 2: Color Upsert
+                    const productColor = await tx.productColor.upsert({
+                        where: { modelId_name: { modelId: model.id, name: colorName } },
+                        create: { modelId: model.id, name: colorName },
+                        update: {} // No metadata at color level yet
+                    });
 
-                        // Stock Logic (EKLE vs GÜNCELLE)
-                        for (const store of stores) {
-                            const qty = r.stocks[store.name] || 0;
-                            
-                            if (r.operationType === "EKLE") {
-                                await tx.stock.upsert({
-                                    where: { variantId_storeId: { variantId: variant.id, storeId: store.id } },
-                                    create: { variantId: variant.id, storeId: store.id, quantity: qty },
-                                    update: { quantity: { increment: qty } }
-                                });
-                            } else {
-                                // GÜNCELLE (Overwrite)
-                                await tx.stock.upsert({
-                                    where: { variantId_storeId: { variantId: variant.id, storeId: store.id } },
-                                    create: { variantId: variant.id, storeId: store.id, quantity: qty },
-                                    update: { quantity: qty }
-                                });
+                    if (productColor.createdAt.getTime() === productColor.updatedAt.getTime()) report.summary.colorsCreated++;
+
+                    // C. Level 3: Variants & Stocks
+                    for (const r of cRows) {
+                        try {
+                            const variant = await tx.productVariant.upsert({
+                                where: { barcode: r.barcode },
+                                create: {
+                                    colorId: productColor.id,
+                                    barcode: r.barcode,
+                                    size: r.size,
+                                    purchasePrice: r.purchasePrice,
+                                    salePrice: r.salePrice,
+                                    sku: r.sku
+                                },
+                                update: {
+                                    purchasePrice: r.purchasePrice,
+                                    salePrice: r.salePrice,
+                                    size: r.size,
+                                    sku: r.sku
+                                }
+                            });
+
+                            if (variant.createdAt.getTime() === variant.updatedAt.getTime()) report.summary.variantsCreated++;
+
+                            // Stock Logic
+                            for (const store of stores) {
+                                const qty = r.stocks[store.name] || 0;
+                                
+                                if (r.operationType === "EKLE") {
+                                    await tx.stock.upsert({
+                                        where: { variantId_storeId: { variantId: variant.id, storeId: store.id } },
+                                        create: { variantId: variant.id, storeId: store.id, quantity: qty },
+                                        update: { quantity: { increment: qty } }
+                                    });
+                                } else {
+                                    await tx.stock.upsert({
+                                        where: { variantId_storeId: { variantId: variant.id, storeId: store.id } },
+                                        create: { variantId: variant.id, storeId: store.id, quantity: qty },
+                                        update: { quantity: qty }
+                                    });
+                                }
                             }
+                            report.summary.stocksUpdated++;
+
+                        } catch (rowErr: any) {
+                            report.summary.failedRows++;
+                            report.logs.push({ type: "error", message: `Satır Hatası (${r.barcode || r.modelCode}): ${rowErr.message}` });
                         }
-                        report.summary.stocksUpdated++;
-
-                    } catch (rowErr: any) {
-                        report.summary.failedRows++;
-                        report.logs.push({ type: "error", message: `Satır Hatası (${r.barcode || r.modelCode}): ${rowErr.message}` });
                     }
                 }
             }
         }, {
-            timeout: 60000, // 1 minute for large imports
+            timeout: 60000,
             maxWait: 15000
         });
 

@@ -43,15 +43,15 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
     // 1. Template Download
     const downloadTemplate = () => {
         const header = [
-            "Cinsiyet", "Mevsim", "Ana Kategori", "Alt Kategori", "Model Kodu", 
-            "Marka", "Renk", "Beden", "Barkod", 
+            "Marka", "Cinsiyet", "Mevsim", "Sezon/Yıl", "Ana Kategori", "Alt Kategori", 
+            "Model Kodu", "Renk", "Beden", "Barkod", "SKU",
             "Alış Fiyatı", "Satış Fiyatı", "İşlem Tipi"
         ];
         stores.forEach(s => header.push(s.name));
 
         const dummyRow = [
-            "Erkek", "Yazlık", "Ayakkabı", "Spor Ayakkabı", "GR10450", 
-            "Nike", "Siyah", "42", "8691234567890", 
+            "Nike", "Erkek", "Yazlık", "2024 Yaz", "Ayakkabı", "Spor Ayakkabı", 
+            "GR10450", "Siyah", "42", "8691234567890", "GR10450-BLK-42",
             "1200", "2500", "EKLE"
         ];
         stores.forEach(() => dummyRow.push("10"));
@@ -59,7 +59,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
         const ws = XLSX.utils.aoa_to_sheet([header, dummyRow]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Urun_Sablonu");
-        XLSX.writeFile(wb, "Smart_Retail_Import_Template.xlsx");
+        XLSX.writeFile(wb, "Smart_Retail_Flat_Import.xlsx");
     }
 
     // 2. File Upload & Parse
@@ -96,7 +96,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
         let warnCount = 0;
         
         rows.forEach(r => {
-            if (!r["Model Kodu"] || !r["Cinsiyet"] || !r["Ana Kategori"]) errCount++;
+            if (!r["Model Kodu"] || !r["Renk"] || !r["Beden"]) errCount++;
             if (isNaN(Number(r["Alış Fiyatı"])) || isNaN(Number(r["Satış Fiyatı"]))) warnCount++;
         });
 
@@ -121,17 +121,19 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                     </Button>
                 ),
             },
-            { accessorKey: "Cinsiyet", header: "Cinsiyet", size: 100 },
-            { accessorKey: "Mevsim", header: "Mevsim", size: 100 },
-            { accessorKey: "Ana Kategori", header: "Ana Kategori", size: 120 },
-            { accessorKey: "Alt Kategori", header: "Alt Kategori", size: 150 },
-            { accessorKey: "Model Kodu", header: "Model Kodu", size: 120 },
             { accessorKey: "Marka", header: "Marka", size: 100 },
+            { accessorKey: "Cinsiyet", header: "Cinsiyet", size: 90 },
+            { accessorKey: "Mevsim", header: "Mevsim", size: 90 },
+            { accessorKey: "Sezon/Yıl", header: "Sezon", size: 100 },
+            { accessorKey: "Ana Kategori", header: "Ana Kat.", size: 120 },
+            { accessorKey: "Alt Kategori", header: "Alt Kat.", size: 130 },
+            { accessorKey: "Model Kodu", header: "Model", size: 120 },
             { accessorKey: "Renk", header: "Renk", size: 100 },
-            { accessorKey: "Beden", header: "Beden", size: 80 },
-            { accessorKey: "Barkod", header: "Barkod", size: 150 },
-            { accessorKey: "Alış Fiyatı", header: "Alış", size: 100 },
-            { accessorKey: "Satış Fiyatı", header: "Satış", size: 100 },
+            { accessorKey: "Beden", header: "Beden", size: 70 },
+            { accessorKey: "Barkod", header: "Barkod", size: 140 },
+            { accessorKey: "SKU", header: "SKU", size: 140 },
+            { accessorKey: "Alış Fiyatı", header: "Alış", size: 90 },
+            { accessorKey: "Satış Fiyatı", header: "Satış", size: 90 },
             { 
                 accessorKey: "İşlem Tipi", 
                 header: "Tip",
@@ -223,17 +225,19 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
 
         setIsProcessing(true);
         try {
-            // Map staging data to SmartImportRow format
+            // Map staging data to SmartImportRow format (V5 Hierarchy)
             const formattedRows: SmartImportRow[] = data.map(r => ({
+                brand: r["Marka"] ? String(r["Marka"]) : undefined,
                 gender: String(r["Cinsiyet"] || "Unisex"),
-                season: String(r["Mevsim"] || "4 Mevsim"),
+                seasonType: String(r["Mevsim"] || "4 Mevsim"),
+                seasonYear: String(r["Sezon/Yıl"] || "Genel"),
                 category: String(r["Ana Kategori"] || "Genel"),
                 subCategory: String(r["Alt Kategori"] || "Genel"),
                 modelCode: String(r["Model Kodu"]),
-                brand: r["Marka"] ? String(r["Marka"]) : undefined,
                 color: String(r["Renk"] || "-"),
                 size: String(r["Beden"] || "-"),
                 barcode: r["Barkod"] ? String(r["Barkod"]) : undefined,
+                sku: r["SKU"] ? String(r["SKU"]) : undefined,
                 purchasePrice: Number(r["Alış Fiyatı"]) || 0,
                 salePrice: Number(r["Satış Fiyatı"]) || 0,
                 operationType: (r["İşlem Tipi"] === "GÜNCELLE" ? "GÜNCELLE" : "EKLE"),
@@ -246,7 +250,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             const report = await runSmartImport(formattedRows, stores);
             
             if (report.success) {
-                toast.success(`İşlem Tamamlandı: ${report.summary.totalRows} satır işlendi.`);
+                toast.success(`İşlem Tanıtıldı: ${report.summary.modelsCreated} Model, ${report.summary.colorsCreated} Renk, ${report.summary.variantsCreated} Beden işlendi.`);
                 onClose();
             } else {
                 toast.error(report.logs[0]?.message || "İçe aktarım başarısız.");
