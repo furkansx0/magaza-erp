@@ -45,14 +45,14 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
         const header = [
             "Marka", "Cinsiyet", "Mevsim", "Sezon/Yıl", "Ana Kategori", "Alt Kategori", 
             "Model Kodu", "Renk", "Beden", "Barkod", "SKU",
-            "Alış Fiyatı", "Satış Fiyatı", "İşlem Tipi"
+            "Alış Fiyatı", "Satış Fiyatı"
         ];
         stores.forEach(s => header.push(s.name));
 
         const dummyRow = [
             "Nike", "Erkek", "Yazlık", "2024 Yaz", "Ayakkabı", "Spor Ayakkabı", 
             "GR10450", "Siyah", "42", "8691234567890", "GR10450-BLK-42",
-            "1200", "2500", "EKLE"
+            "1200", "2500"
         ];
         stores.forEach(() => dummyRow.push("10"));
 
@@ -134,19 +134,6 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             { accessorKey: "SKU", header: "SKU", size: 140 },
             { accessorKey: "Alış Fiyatı", header: "Alış", size: 90 },
             { accessorKey: "Satış Fiyatı", header: "Satış", size: 90 },
-            { 
-                accessorKey: "İşlem Tipi", 
-                header: "Tip",
-                size: 80,
-                cell: ({ getValue }) => (
-                    <span className={cn(
-                        "px-2 py-0.5 rounded text-[10px] font-bold",
-                        getValue() === "EKLE" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
-                    )}>
-                        {(getValue() || "EKLE") as React.ReactNode}
-                    </span>
-                )
-            },
         ];
 
         stores.forEach(s => {
@@ -241,7 +228,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                 sku: r["SKU"] ? String(r["SKU"]) : undefined,
                 purchasePrice: Number(r["Alış Fiyatı"]) || 0,
                 salePrice: Number(r["Satış Fiyatı"]) || 0,
-                operationType: (r["İşlem Tipi"] === "GÜNCELLE" ? "GÜNCELLE" : "EKLE"),
+                operationType: "GÜNCELLE",
                 stocks: stores.reduce((acc, s) => {
                     const rawText = r[s.name];
                     acc[s.name] = (typeof rawText === "string" && (rawText.startsWith("+") || rawText.startsWith("-"))) ? rawText : (Number(rawText) || 0);
