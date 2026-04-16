@@ -43,33 +43,36 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         const totalRows = rows.length;
         let emptyNameRows = 0;
         const validRows: ImportRow[] = [];
+        const traceLogs: string[] = [];
 
-        // ── 1. Ön Filtre (Model Adı + Model Kodu Kontrolü) ──────────────────
-        for (const row of rows) {
-            const modelName = String(row["Model Adı"] || "").trim();
-            const modelCode = String(row["Model Kodu"] || row["Stok Kodu"] || "").trim();
+        // Yardımcı: Normalizasyon (Küçük harf + Trim)
+        const norm = (s?: string | number | null) => String(s ?? "").trim().toLowerCase();
 
+        // ── 1. Ön Filtre ──────────────────────────────────────────────────
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const modelName = norm(row["Model Adı"]);
             if (!modelName) {
                 emptyNameRows++;
+                traceLogs.push(`⚠️ Satır ${i+1}: Model Adı boş, atlandı.`);
                 continue;
             }
             validRows.push(row);
         }
 
-        // ── 2. Modelleri Bellekte Grupla (Kural: Model Kodu + Marka) ────────
-        // Eğer Model Kodu yoksa Model Adı'ndan türetilir
+        // ── 2. Modelleri Grupla (Kural: Model Kodu + Marka) ───────────────
         const modelGroups = new Map<string, ImportRow[]>();
         let missingBarcodeCount = 0;
 
         for (const row of validRows) {
-            const mCode = String(row["Model Kodu"] || row["Stok Kodu"] || "").trim() || String(row["Model Adı"]).trim();
-            const mBrand = String(row["Marka"] || "").trim();
-            const key = `${mCode}||${mBrand}`;
+            const mCode = norm(row["Model Kodu"] || row["Stok Kodu"] || row["Model Adı"]);
+            const mBrand = norm(row["Marka"]);
+            const key = `${mCode}||${mBrand}`; // Örn: "tyg-100||nike"
 
             if (!modelGroups.has(key)) modelGroups.set(key, []);
             modelGroups.get(key)!.push(row);
 
-            if (!row["Barkod"] || String(row["Barkod"]).trim() === "") {
+            if (!norm(row["Barkod"])) {
                 missingBarcodeCount++;
             }
         }
@@ -81,12 +84,11 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             if (res.success && res.barcodes) {
                 generatedBarcodes = res.barcodes;
             } else {
-                throw new Error(res.error || "Sıralı barkod üretimi başarısız oldu.");
+                throw new Error("Sıralı barkod üretimi başarısız oldu.");
             }
         }
 
-        // ── 4. Mevcut Modelleri Getir & Upsert ──────────────────────────────
-        // modelCode + brand ikilisine göre ara
+        // ── 4. Modelleri Getir & Upsert ──────────────────────────────
         const neededCodes = Array.from(modelGroups.keys()).map(k => k.split("||")[0]);
         const existingModels = await db.productModel.findMany({
             where: { modelCode: { in: neededCodes } },
@@ -95,7 +97,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
 
         const modelMap = new Map<string, string>();
         for (const m of existingModels) {
-            modelMap.set(`${m.modelCode}||${m.brand || ""}`, m.id);
+            modelMap.set(`${norm(m.modelCode)}||${norm(m.brand)}`, m.id);
         }
 
         let modelsCreated = 0;
@@ -107,7 +109,6 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             const existingId = modelMap.get(key);
 
             if (existingId) {
-                // Mevcut modeli güncelle (Kategori, Sezon vb. değişmiş olabilir)
                 await db.productModel.update({
                     where: { id: existingId },
                     data: {
@@ -119,12 +120,11 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                 });
                 modelsUpdated++;
             } else {
-                // Yeni model oluştur
                 const newModel = await db.productModel.create({
                     data: {
                         name: String(firstRow["Model Adı"]).trim(),
-                        modelCode: mCode,
-                        brand: mBrand || null,
+                        modelCode: mCode.toUpperCase(), // Kodları büyük saklayalım ama norm() ile küçük arayalım
+                        brand: String(firstRow["Marka"] || "").trim() || null,
                         category: firstRow["Kategori 1"] ? String(firstRow["Kategori 1"]).trim() : null,
                         subCategory: firstRow["Kategori 2"] ? String(firstRow["Kategori 2"]).trim() : null,
                         season: firstRow["Sezon"] ? String(firstRow["Sezon"]).trim() : null,
@@ -152,6 +152,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             barcode: string;
             color: string;
             size: string;
+            origIndex: number;
         };
         const prepared: PreparedRow[] = [];
 
@@ -160,14 +161,14 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             if (!modelId) continue;
 
             for (const row of groupRows) {
-                const color = row["Renk"] ? String(row["Renk"]).trim() : "-";
-                const size  = row["Beden"] ? String(row["Beden"]).trim() : "-";
+                const color = String(row["Renk"] || "-").trim();
+                const size  = String(row["Beden"] || "-").trim();
                 const rawSku = row["Stok Kodu"] || row["SKU"];
                 
                 const sku = rawSku ? String(rawSku).trim().toUpperCase() :
                     `${simpleSlug(key.split("||")[0])}-${simpleSlug(color)}-${size}`.toUpperCase();
 
-                let barcode = row["Barkod"] ? String(row["Barkod"]).trim() : "";
+                let barcode = norm(row["Barkod"]);
                 if (!barcode) {
                     barcode = tempBarcodeIdx < generatedBarcodes.length
                         ? generatedBarcodes[tempBarcodeIdx++]
@@ -176,51 +177,59 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
 
                 allBarcodes.push(barcode);
                 allSkus.push(sku);
-                prepared.push({ row, modelId, sku, barcode, color, size });
+                prepared.push({ 
+                    row, 
+                    modelId, 
+                    sku: sku.toUpperCase(), 
+                    barcode: barcode.toLowerCase(), 
+                    color, 
+                    size,
+                    origIndex: rows.indexOf(row) + 1
+                });
             }
         }
 
-        // ── 6. Mevcut Varyantları & Stokları Çek (Tüm Model Bazlı) ──────────
-        // HATA ÖNLEME: Sadece Barkod/SKU değil, bu modellerin TÜM varyantlarını çekelim
-        // Böylece kombinasyon (Model+Renk+Beden) kontrolü yapabiliriz.
+        // ── 6. Mevcut Varyantları & Stokları Çek ─────────────────────────────
         const modelIds = Array.from(modelMap.values());
         const existingVariants = await db.productVariant.findMany({
             where: { modelId: { in: modelIds } },
             include: { stocks: true }
         });
 
-        // Eşleştirme Haritaları
         const existingBarcodeMap = new Map<string, typeof existingVariants[0]>();
         const existingSkuMap     = new Map<string, typeof existingVariants[0]>();
         const existingComboMap   = new Map<string, typeof existingVariants[0]>();
 
         for (const v of existingVariants) {
-            if (v.barcode) existingBarcodeMap.set(v.barcode, v);
-            if (v.sku)     existingSkuMap.set(v.sku, v);
+            if (v.barcode) existingBarcodeMap.set(norm(v.barcode), v);
+            if (v.sku)     existingSkuMap.set(norm(v.sku), v);
             
-            // Kombinasyon Anahtarı: ModelId | Renk | Beden
-            const comboKey = `${v.modelId}|${String(v.color || "").trim()}|${String(v.size || "").trim()}`;
+            const comboKey = `${v.modelId}|${norm(v.color)}|${norm(v.size)}`;
             existingComboMap.set(comboKey, v);
         }
 
-        // ── 7. Upsert Döngüsü (Akıllı Eşleştirme) ───────────────────────────
+        // ── 7. Upsert Döngüsü ───────────────────────────────────────────────
         let variantsCreated = 0;
         let variantsUpdated = 0;
         let matchedByCombo = 0;
         let stocksIncremented = 0;
 
         for (const p of prepared) {
-            // Eşleşme Hiyerarşisi: 1. Barkod, 2. SKU, 3. Kombinasyon
-            let existing = existingBarcodeMap.get(p.barcode) || existingSkuMap.get(p.sku);
-            
+            let existing = existingBarcodeMap.get(norm(p.barcode)) || existingSkuMap.get(norm(p.sku));
+            let matchType = "";
+
             if (!existing) {
-                const comboKey = `${p.modelId}|${p.color}|${p.size}`;
+                const comboKey = `${p.modelId}|${norm(p.color)}|${norm(p.size)}`;
                 existing = existingComboMap.get(comboKey);
-                if (existing) matchedByCombo++;
+                if (existing) {
+                    matchedByCombo++;
+                    matchType = "Kombinasyon (Renk+Beden)";
+                }
+            } else {
+                matchType = "Barkod/SKU";
             }
 
             if (existing) {
-                // 1. Fiyatları Güncelle (Sync)
                 await db.productVariant.update({
                     where: { id: existing.id },
                     data: {
@@ -229,30 +238,20 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                     }
                 });
                 variantsUpdated++;
+                traceLogs.push(`✅ [${p.origIndex}] ${p.sku}: ${matchType} ile bulundu, stoğu artırıldı.`);
 
-                // 2. Stokları Üzerine Ekle (Increment)
                 for (const store of stores) {
                     const incomingQty = Number(p.row[store.name]);
                     if (isNaN(incomingQty) || incomingQty <= 0) continue;
 
                     await db.stock.upsert({
-                        where: {
-                            variantId_storeId: {
-                                variantId: existing.id,
-                                storeId: store.id
-                            }
-                        },
+                        where: { variantId_storeId: { variantId: existing.id, storeId: store.id } },
                         update: { quantity: { increment: incomingQty } },
-                        create: {
-                            variantId: existing.id,
-                            storeId: store.id,
-                            quantity: incomingQty
-                        }
+                        create: { variantId: existing.id, storeId: store.id, quantity: incomingQty }
                     });
                     stocksIncremented++;
                 }
             } else {
-                // Yeni Varyant Oluştur
                 await db.productVariant.create({
                     data: {
                         modelId:       p.modelId,
@@ -271,17 +270,18 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                     }
                 });
                 variantsCreated++;
+                traceLogs.push(`✨ [${p.origIndex}] ${p.sku}: Model kodu bulundu ama ${p.size} bedeni yoktu, yeni varyant açıldı.`);
             }
         }
 
         revalidatePath("/dashboard/products");
 
-        const msg = `💎 Sistem Pırlanta Gibi Oldu!\n\n` +
+        const msg = `💎 Smart Import V3 Tamamlandı!\n\n` +
             `📂 Modeller: ${modelsCreated} Yeni, ${modelsUpdated} Güncellendi\n` +
             `🏷️ Varyantlar: ${variantsCreated} Yeni, ${matchedByCombo} Kombinasyon ile Eşleşti\n` +
             `🔄 Güncelleme: ${variantsUpdated} Varyant Fiyatı Senkronize Edildi\n` +
-            `📦 Stoklar: ${stocksIncremented} Mağaza Stoğu Artırıldı\n` +
-            `🚫 Hatalı Satırlar: ${emptyNameRows}`;
+            `📦 Stoklar: ${stocksIncremented} Mağaza Stoğu Artırıldı\n\n` +
+            `📝 Detaylı Log:\n` + traceLogs.slice(-20).join("\n") + (traceLogs.length > 20 ? "\n..." : "");
 
         return {
             success: true,
