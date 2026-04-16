@@ -178,6 +178,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             },
         },
         defaultColumn: {
+        defaultColumn: {
             cell: ({ getValue, row: { index }, column: { id }, table }) => {
                 const initialValue = getValue()
                 const [value, setValue] = React.useState(initialValue)
@@ -190,10 +191,12 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                         value={value as string}
                         onChange={e => setValue(e.target.value)}
                         onBlur={onBlur}
-                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-500 rounded px-1 -mx-1"
+                        className="w-full bg-white/50 border-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded px-1 -mx-1 transition-colors hover:bg-white"
+                        style={{ height: '24px' }}
                     />
                 )
             },
+        },
         },
     });
 
@@ -357,8 +360,8 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                                         {headerGroup.headers.map(header => (
                                             <div 
                                                 key={header.id} 
-                                                className="h-10 px-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider border-r last:border-r-0 flex items-center bg-gray-50"
-                                                style={{ width: header.getSize() }}
+                                                className="h-10 px-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider border-r last:border-r-0 flex items-center bg-gray-50 shrink-0"
+                                                style={{ width: header.getSize() || 100 }}
                                             >
                                                 {header.isPlaceholder ? null : (flexRender(header.column.columnDef.header, header.getContext()) as React.ReactNode)}
                                             </div>
@@ -383,8 +386,8 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                                         {row.getVisibleCells().map(cell => (
                                             <div 
                                                 key={cell.id} 
-                                                className="px-3 border-r last:border-r-0 text-xs overflow-hidden text-ellipsis whitespace-nowrap flex items-center"
-                                                style={{ width: cell.column.getSize() }}
+                                                className="px-3 border-r last:border-r-0 text-xs overflow-hidden text-ellipsis whitespace-nowrap flex items-center shrink-0"
+                                                style={{ width: cell.column.getSize() || 100 }}
                                             >
                                                 {flexRender(cell.column.columnDef.cell, cell.getContext()) as React.ReactNode}
                                             </div>

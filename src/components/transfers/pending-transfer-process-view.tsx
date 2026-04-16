@@ -1,9 +1,8 @@
 "use client"
 
 import type { ProductWithVariants } from '@/types/actions';
-﻿
 import React, { useEffect, useState, useRef } from "react"
-import { StockTransfer, StockTransferItem, ProductVariant, ProductModel, Store } from "@prisma/client"
+import { StockTransfer, StockTransferItem, ProductVariant, ProductModel, Store, ProductColor } from "@prisma/client"
 import { TransferProductGrid } from "@/components/products/transfer-product-grid"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,30 +14,38 @@ import { useRouter } from "next/navigation"
 
 
 // Helper to transform Transfer Items to ProductWithVariants for the Grid
-function transformToGridData(items: (StockTransferItem & { variant: ProductVariant & { model: ProductModel } })[], scannedMap: Record<string, number>): ProductWithVariants[] {
+function transformToGridData(items: (StockTransferItem & { variant: ProductVariant & { color: ProductColor & { model: ProductModel } } })[], scannedMap: Record<string, number>): ProductWithVariants[] {
     const productMap = new Map<string, ProductWithVariants>()
 
     items.forEach(item => {
-        const p = item.variant.model
+        const p = item.variant.color.model
+        const color = item.variant.color
+
         if (!productMap.has(p.id)) {
             productMap.set(p.id, {
                 ...p,
-                variants: [],
-                _count: { variants: 0 }
+                colors: []
             } as any)
         }
 
         const product = productMap.get(p.id)!
 
+        // Find or create color layer
+        let productColor = product.colors.find((c: any) => c.id === color.id)
+        if (!productColor) {
+            productColor = { ...color, variants: [] }
+            product.colors.push(productColor)
+        }
+
         // Construct variant with "injected" stock for the grid columns
         const variantWithStocks = {
             ...item.variant,
             stocks: [
-                { storeId: "planned", quantity: item.quantitySent },
-                { storeId: "scanned", quantity: scannedMap[item.variantId] || 0 }
+                { id: "planned-stock-" + item.variantId, variantId: item.variantId, storeId: "planned", quantity: item.quantitySent, isArchived: false },
+                { id: "scanned-stock-" + item.variantId, variantId: item.variantId, storeId: "scanned", quantity: scannedMap[item.variantId] || 0, isArchived: false }
             ]
         }
-        product.variants.push(variantWithStocks as any)
+        productColor.variants.push(variantWithStocks as any)
     })
 
     return Array.from(productMap.values())
@@ -48,7 +55,7 @@ interface PendingTransferProcessViewProps {
     transfer: StockTransfer & {
         sourceStore: Store
         targetStore: Store
-        items: (StockTransferItem & { variant: ProductVariant & { model: ProductModel } })[]
+        items: (StockTransferItem & { variant: ProductVariant & { color: ProductColor & { model: ProductModel } } })[]
     }
 }
 
@@ -74,7 +81,7 @@ export function PendingTransferProcessView({ transfer }: PendingTransferProcessV
                 ...prev,
                 [item.variantId]: (prev[item.variantId] || 0) + 1
             }))
-            toast.success(`${item.variant.model.name} (${item.variant.size}/${item.variant.color}) okundu.`)
+            toast.success(`${item.variant.color.model.name} (${item.variant.size}/${item.variant.color.name}) okundu.`)
             setBarcodeInput("")
         } else {
             toast.error("Bu transferde böyle bir ürün yok.")
@@ -182,7 +189,7 @@ export function PendingTransferProcessView({ transfer }: PendingTransferProcessV
                         <TransferProductGrid
                             products={gridData}
                             stores={dummyStores}
-                            facets={{ brands: [], categories: [], seasons: [] }}
+                            facets={{ brands: [], categories: [], seasonTypes: [], seasonYears: [] }}
                             totalCount={gridData.length}
                         />
                     </div>

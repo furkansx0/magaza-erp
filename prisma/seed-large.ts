@@ -67,18 +67,26 @@ async function main() {
         // Create Variants (Colors)
         const randomColors = COLORS.sort(() => 0.5 - Math.random()).slice(0, 3) // Pick 3 random colors
 
-        for (const color of randomColors) {
+        for (const colorName of randomColors) {
             const basePrice = Math.floor(Math.random() * 2000) + 500
+
+            // Create Color Layer
+            const productColor = await prisma.productColor.create({
+                data: {
+                    modelId: model.id,
+                    name: colorName,
+                    colorCode: colorName.substring(0, 3).toUpperCase()
+                }
+            })
 
             for (const size of SIZES) {
                 const barcode = `869${Math.floor(100000000 + Math.random() * 900000000)}`
 
                 await prisma.productVariant.create({
                     data: {
-                        modelId: model.id,
+                        colorId: productColor.id,
                         barcode: barcode,
-                        sku: `${brand.substring(0, 3).toUpperCase()}-${model.id.substring(0, 4)}-${color.substring(0, 3)}-${size}`.toUpperCase(),
-                        color,
+                        sku: `${brand.substring(0, 3).toUpperCase()}-${model.id.substring(0, 4)}-${colorName.substring(0, 3)}-${size}`.toUpperCase(),
                         size,
                         purchasePrice: basePrice * 0.6,
                         salePrice: basePrice,

@@ -34,7 +34,9 @@ export async function validateProductByBarcode(barcode: string, storeId: string)
                 ]
             },
             include: {
-                model: true,
+                color: {
+                    include: { model: true }
+                },
                 stocks: {
                     where: { storeId: storeId }
                 }
@@ -48,7 +50,7 @@ export async function validateProductByBarcode(barcode: string, storeId: string)
         const stockQty = variant.stocks[0]?.quantity || 0;
 
         if (stockQty <= 0) {
-            return { success: false, error: `Bu mağazada stok yok! (${variant.model.name})` }
+            return { success: false, error: `Bu mağazada stok yok! (${variant.color.model.name})` }
         }
 
         return {
@@ -56,9 +58,9 @@ export async function validateProductByBarcode(barcode: string, storeId: string)
             product: {
                 variantId: variant.id,
                 barcode: variant.barcode || variant.id,
-                name: `${variant.model.name} - ${variant.color} / ${variant.size}`,
-                modelName: variant.model.name,
-                color: variant.color || "",
+                name: `${variant.color.model.name} - ${variant.color.name} / ${variant.size}`,
+                modelName: variant.color.model.name,
+                color: variant.color.name || "",
                 size: variant.size || "",
                 stock: stockQty,
                 // image: variant.images?.[0] // Assuming images logic

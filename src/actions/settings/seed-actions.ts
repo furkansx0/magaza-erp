@@ -61,9 +61,20 @@ export async function seedProductsBatch(batchSize: number, storeIds: string[]) {
                         name: modelName,
                         brand: brand,
                         category: category,
-                        season: "2024 Test",
+                        seasonYear: "2024",
+                        seasonType: "Test",
                         gender: gender,
-                        description: "Otomatik test ürünü"
+                        description: "Otomatik test ürünü",
+                        modelCode: `M-${randomInt(1000, 9999)}`
+                    }
+                });
+
+                // A. Create Color Layer
+                const colorObj = await tx.productColor.create({
+                    data: {
+                        modelId: model.id,
+                        name: color,
+                        colorCode: color.substring(0, 3).toUpperCase()
                     }
                 });
 
@@ -77,8 +88,7 @@ export async function seedProductsBatch(batchSize: number, storeIds: string[]) {
 
                 const variant = await tx.productVariant.create({
                     data: {
-                        modelId: model.id,
-                        color: color,
+                        colorId: colorObj.id,
                         size: size,
                         sku: sku,
                         barcode: String(barcode),
@@ -120,8 +130,16 @@ export async function seedSales(count: number, storeIdOverride: string = "mixed"
         const variants = await db.productVariant.findMany({
             take: 200,
             where: { isArchived: false } as any, // Only active if field exists, else ignore
-            select: { id: true, salePrice: true, model: { select: { name: true } } }
-        });
+            select: { 
+                id: true, 
+                salePrice: true, 
+                color: { 
+                    select: { 
+                        model: { select: { name: true } } 
+                    } 
+                } 
+            }
+        }) as any[];
         if (variants.length === 0) return { success: false, error: "Önce ürün eklemelisiniz." };
 
         // Fetch all active stores if 'mixed', else specific
@@ -167,7 +185,7 @@ export async function seedSales(count: number, storeIdOverride: string = "mixed"
                     const c = await tx.customer.create({
                         data: {
                             name: `${name} ${surname}`,
-                            phone: `05${randomInt(10, 99)} ${randomInt(100, 999)} ${randomInt(10, 99)} ${randomInt(10, 99)}`,
+                            phone: `05${randomInt(10, 99)}${randomInt(100, 999)}${randomInt(1000, 9999)}`,
                             email: `test${randomInt(1, 99999)}@test.com`
                         }
                     });
@@ -194,7 +212,8 @@ export async function seedSales(count: number, storeIdOverride: string = "mixed"
                     saleItemsData.push({
                         variantId: variant.id,
                         quantity: qty,
-                        price: price
+                        finalPrice: price,
+                        originalPrice: price
                     });
                 }
 

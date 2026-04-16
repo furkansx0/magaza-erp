@@ -9,25 +9,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         const model = await db.productModel.findUnique({
             where: { id },
             include: {
-                variants: {
+                colors: {
                     include: {
-                        stocks: {
-                            include: { store: { select: { id: true, name: true } } }
-                        },
-                        saleItems: {
+                        variants: {
                             include: {
-                                sale: {
-                                    select: {
-                                        id: true,
-                                        createdAt: true,
-                                        store: { select: { id: true, name: true } },
-                                        customer: { select: { id: true, name: true, phone: true } },
-                                        cashier: { select: { id: true, name: true, username: true } }
-                                    }
+                                stocks: {
+                                    include: { store: { select: { id: true, name: true } } }
                                 },
-                                salesRep: { select: { id: true, name: true, username: true } }
-                            },
-                            orderBy: { sale: { createdAt: 'desc' } }
+                                saleItems: {
+                                    include: {
+                                        sale: {
+                                            select: {
+                                                id: true,
+                                                createdAt: true,
+                                                store: { select: { id: true, name: true } },
+                                                customer: { select: { id: true, name: true, phone: true } },
+                                                cashier: { select: { id: true, name: true, username: true } }
+                                            }
+                                        },
+                                        salesRep: { select: { id: true, name: true, username: true } }
+                                    },
+                                    orderBy: { sale: { createdAt: 'desc' } }
+                                }
+                            }
                         }
                     }
                 }
@@ -38,8 +42,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             return NextResponse.json({ error: "Model bulunamadı" }, { status: 404 });
         }
 
+        // Flatten variants for processing
+        const allVariants = model.colors.flatMap(c => c.variants.map(v => ({ ...v, color: c.name })));
+
         // 2. Compute variant-level analytics
-        const variantAnalytics = model.variants.map(v => {
+        const variantAnalytics = allVariants.map(v => {
             const totalSold = v.saleItems.reduce((acc, si) => acc + si.quantity, 0);
             const totalRevenue = v.saleItems.reduce((acc, si) => acc + (Number(si.finalPrice) * si.quantity), 0);
             const totalProfit = v.saleItems.reduce((acc, si) => acc + ((Number(si.finalPrice) - Number(v.purchasePrice)) * si.quantity), 0);
@@ -94,7 +101,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
         // 4. Store-level aggregation
         const storeMap = new Map<string, { storeName: string; sold: number; revenue: number; stock: number }>();
-        for (const variant of model.variants) {
+        for (const variant of allVariants) {
             // Stock
             for (const s of variant.stocks) {
                 const existing = storeMap.get(s.storeId) || { storeName: s.store.name, sold: 0, revenue: 0, stock: 0 };
@@ -112,7 +119,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         }
 
         // 5. Recent sale timeline (last 50 sales across all variants)
-        const allSaleItems = model.variants.flatMap(v =>
+        const allSaleItems = allVariants.flatMap(v =>
             v.saleItems.map(si => ({
                 saleId: si.sale.id,
                 variantId: v.id,
@@ -138,7 +145,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                 name: model.name,
                 brand: model.brand,
                 category: model.category,
-                season: model.season,
+                seasonYear: model.seasonYear,
+                seasonType: model.seasonType,
                 modelCode: model.modelCode
             },
             summary: {

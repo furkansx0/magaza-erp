@@ -142,7 +142,7 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
 
 export async function getFilterFacets() {
     try {
-        const [brands, categories, seasons, subCategories] = await Promise.all([
+        const [brands, categories, seasonTypes, seasonYears, subCategories] = await Promise.all([
             db.productModel.findMany({
                 select: { brand: true },
                 distinct: ['brand'],
@@ -156,9 +156,15 @@ export async function getFilterFacets() {
                 take: 500
             }),
             db.productModel.findMany({
-                select: { season: true },
-                distinct: ['season'],
-                where: { isArchived: false, season: { not: null } },
+                select: { seasonType: true },
+                distinct: ['seasonType'],
+                where: { isArchived: false, seasonType: { not: null } },
+                take: 500
+            }),
+            db.productModel.findMany({
+                select: { seasonYear: true },
+                distinct: ['seasonYear'],
+                where: { isArchived: false, seasonYear: { not: null } },
                 take: 500
             }),
             db.productModel.findMany({
@@ -172,10 +178,11 @@ export async function getFilterFacets() {
         return {
             brands: brands.map(b => b.brand).filter(Boolean),
             categories: categories.map(c => c.category).filter(Boolean),
-            seasons: seasons.map(s => s.season).filter(Boolean),
+            seasonTypes: seasonTypes.map(s => s.seasonType).filter(Boolean),
+            seasonYears: seasonYears.map(s => s.seasonYear).filter(Boolean),
             subCategories: subCategories.map(s => s.subCategory).filter(Boolean),
         };
     } catch (error) {
-        return { brands: [], categories: [], seasons: [], subCategories: [] };
+        return { brands: [], categories: [], seasonTypes: [], seasonYears: [], subCategories: [] };
     }
 }

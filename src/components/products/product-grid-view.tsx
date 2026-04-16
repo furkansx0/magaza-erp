@@ -74,7 +74,8 @@ type GridRow = {
     size: string
     brand: string
     category: string
-    season: string
+    seasonType: string
+    seasonYear: string
     stockTotal: number
     purchasePrice: number
     salePrice: number
@@ -93,7 +94,8 @@ interface ProductGridProps {
     facets: {
         brands: { checked: boolean, count: number, value: string }[]
         categories: { checked: boolean, count: number, value: string }[]
-        seasons: { checked: boolean, count: number, value: string }[]
+        seasonTypes: { checked: boolean, count: number, value: string }[]
+        seasonYears: { checked: boolean, count: number, value: string }[]
         subCategories: { checked: boolean, count: number, value: string }[]
     }
     totalCount?: number
@@ -585,7 +587,7 @@ export function ProductGrid(props: ProductGridProps) {
                     sku: v.sku,
                     barcode: v.barcode,
                     size: v.size,
-                    season: v.season,
+                    season: `${v.seasonType} ${v.seasonYear}`,
                     color: v.color,
                     salePrice: v.salePrice,
                     quantity: finalQty
@@ -704,7 +706,7 @@ export function ProductGrid(props: ProductGridProps) {
                 "Marka": row.brand,
                 "Tür": row.category,
                 "Detay": row.subCategory,
-                "Sezon": row.season,
+                "Sezon": `${row.seasonType} ${row.seasonYear}`,
                 "Alış Fiyatı": row.purchasePrice,
                 "Satış Fiyatı": row.salePrice,
                 "Toplam Stok": row.stockTotal

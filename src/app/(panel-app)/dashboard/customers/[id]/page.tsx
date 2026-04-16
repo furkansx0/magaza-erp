@@ -40,7 +40,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                         include: {
                             variant: {
                                 include: {
-                                    model: true
+                                    color: {
+                                        include: { model: true }
+                                    }
                                 }
                             },
                             salesRep: true // Added info
@@ -96,8 +98,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         items: sale.items.map(item => ({
             id: item.id,
             sku: item.variant.sku || item.variant.barcode,
-            name: item.variant.model.name,
-            variantName: `${item.variant.color || ""} ${item.variant.size || ""}`.trim(),
+            name: item.variant.color.model.name,
+            variantName: `${item.variant.color.name || ""} ${item.variant.size || ""}`.trim(),
             quantity: item.quantity,
             originalPrice: Number(item.originalPrice),
             finalPrice: Number(item.finalPrice),
@@ -119,12 +121,12 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                 const q = item.quantity
                 totalItems += q
 
-                const cat = item.variant.model.category || "Diğer"
+                const cat = item.variant.color.model.category || "Diğer"
                 categoryCount[cat] = (categoryCount[cat] || 0) + q
 
-                if (item.variant.color) colorCount[item.variant.color] = (colorCount[item.variant.color] || 0) + q
+                if (item.variant.color.name) colorCount[item.variant.color.name] = (colorCount[item.variant.color.name] || 0) + q
                 if (item.variant.size) sizeCount[item.variant.size] = (sizeCount[item.variant.size] || 0) + q
-                if (item.variant.model.brand) brandCount[item.variant.model.brand] = (brandCount[item.variant.model.brand] || 0) + q
+                if (item.variant.color.model.brand) brandCount[item.variant.color.model.brand] = (brandCount[item.variant.color.model.brand] || 0) + q
             }
         })
     })

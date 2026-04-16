@@ -56,7 +56,9 @@ export default async function DashboardPage() {
                     salesRep: true, // Include Sales Rep
                     variant: {
                         include: {
-                            model: true
+                            color: {
+                                include: { model: true }
+                            }
                         }
                     }
                 }

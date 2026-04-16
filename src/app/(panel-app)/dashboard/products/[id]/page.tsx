@@ -17,7 +17,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
             brand: true,
             category: true,
             modelCode: true,
-            season: true
+            seasonYear: true,
+            seasonType: true
         }
     });
 

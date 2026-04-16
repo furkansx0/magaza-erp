@@ -242,11 +242,11 @@ export async function createTransferRequest(data: {
                 // Check Source
                 const sourceStock = await tx.stock.findUnique({
                     where: { variantId_storeId: { variantId: item.variantId, storeId: data.sourceStoreId } },
-                    include: { variant: { include: { model: true } } } // Include for error msg
+                    include: { variant: { include: { color: { include: { model: true } } } } } // Include for error msg
                 });
 
                 if (!sourceStock || sourceStock.quantity < item.quantity) {
-                    throw new Error(`Yetersiz Stok: ${sourceStock?.variant.model.name || item.variantId}`);
+                    throw new Error(`Yetersiz Stok: ${sourceStock?.variant.color.model.name || item.variantId}`);
                 }
 
                 // Decrement Source

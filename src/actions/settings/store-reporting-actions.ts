@@ -156,7 +156,7 @@ export async function getStoreActivityReport(
             items: {
                 include: {
                     variant: {
-                        include: { model: true }
+                        include: { color: { include: { model: true } } }
                     },
                     salesRep: { select: { name: true, username: true } }
                 }
@@ -385,7 +385,7 @@ export async function getStaffSales(storeId: string, staffId: string, dateParams
             items: {
                 include: {
                     variant: {
-                        include: { model: true }
+                        include: { color: { include: { model: true } } }
                     },
                     salesRep: { select: { name: true, username: true } }
                 }

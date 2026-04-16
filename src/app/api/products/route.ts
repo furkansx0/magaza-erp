@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
             search: searchParams.get("search") || undefined,
             brand: searchParams.getAll("brand"),
             category: searchParams.getAll("category"),
-            season: searchParams.getAll("season"),
+            seasonYear: searchParams.getAll("seasonYear"),
+            seasonType: searchParams.getAll("seasonType"),
             material: searchParams.getAll("material"),
             showArchived: searchParams.get("status") === "archived"
         };

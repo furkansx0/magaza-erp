@@ -1,4 +1,4 @@
-﻿
+
 "use client"
 
 import { Badge } from "@/components/ui/badge"
@@ -37,11 +37,14 @@ interface RecommendedTransfersViewProps {
                 id: string
                 barcode: string
                 sku: string | null
-                color: string | null
                 size: string | null
                 purchasePrice: any
                 salePrice: any
-                model: { name: string, brand?: string | null, category?: string | null, season?: string | null, createdAt: Date }
+                color: { 
+                    id: string,
+                    name: string,
+                    model: { id: string, name: string, brand?: string | null, category?: string | null, seasonType?: string | null, seasonYear?: string | null, createdAt: Date } 
+                }
                 stocks: Array<{ storeId: string, quantity: number }>
             }
         }>
@@ -122,24 +125,29 @@ export function RecommendedTransfersView({ recommendations }: RecommendedTransfe
         const productsMap = new Map<string, any>()
 
         transfer.items.forEach(item => {
-            const modelName = item.variant.model.name
-            const modelId = item.variant.model.name
+            const p = item.variant.color.model
+            const color = item.variant.color
 
-            if (!productsMap.has(modelName)) {
-                productsMap.set(modelName, {
-                    id: modelId,
-                    name: modelName,
-                    variants: [],
+            if (!productsMap.has(p.id)) {
+                productsMap.set(p.id, {
+                    ...p,
                     createdAt: new Date(),
-                    brand: item.variant.model.brand || "-",
-                    category: item.variant.model.category || "-",
-                    season: item.variant.model.season || "-"
+                    colors: []
                 })
             }
 
-            const product = productsMap.get(modelName)
-            product.variants.push({
+            const product = productsMap.get(p.id)
+            
+            // Find or create color layer
+            let productColor = product.colors.find((c: any) => c.id === color.id)
+            if (!productColor) {
+                productColor = { ...color, variants: [] }
+                product.colors.push(productColor)
+            }
+
+            productColor.variants.push({
                 ...item.variant,
+                color: color.name,
                 transferQuantity: item.quantitySent,
                 stocks: item.variant.stocks || []
             })
@@ -286,11 +294,16 @@ export function RecommendedTransfersView({ recommendations }: RecommendedTransfe
                                     stores={[selectedTransfer.sourceStore, selectedTransfer.targetStore]}
                                     facets={
                                         (() => {
-                                            const data = getGridData(selectedTransfer);
-                                            const brands = Array.from(new Set(data.map(d => d.brand).filter(Boolean))).map(v => ({ value: v, count: 0, checked: false }));
-                                            const categories = Array.from(new Set(data.map(d => d.category).filter(Boolean))).map(v => ({ value: v, count: 0, checked: false }));
-                                            const seasons = Array.from(new Set(data.map(d => d.season).filter(Boolean))).map(v => ({ value: v, count: 0, checked: false }));
-                                            return { brands, categories, seasons };
+                                            const dataMap = getGridData(selectedTransfer).flatMap(p => 
+                                                p.colors.flatMap((c: any) => 
+                                                    c.variants.map((v: any) => ({ ...v, ...p, color: c.name }))
+                                                )
+                                            );
+                                            const brands = Array.from(new Set(dataMap.map(d => d.brand).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
+                                            const categories = Array.from(new Set(dataMap.map(d => d.category).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
+                                            const seasonTypes = Array.from(new Set(dataMap.map(d => d.seasonType).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
+                                            const seasonYears = Array.from(new Set(dataMap.map(d => d.seasonYear).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
+                                            return { brands, categories, seasonTypes, seasonYears };
                                         })()
                                     }
                                     totalCount={selectedTransfer.items.length}

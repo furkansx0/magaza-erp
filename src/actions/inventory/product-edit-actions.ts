@@ -17,7 +17,8 @@ export async function updateProductMatrix(data: {
     subCategory?: string
     material?: string
     style?: string
-    season?: string
+    seasonYear?: string
+    seasonType?: string
     description?: string
     variants: any[]
 }) {
@@ -38,7 +39,8 @@ export async function updateProductMatrix(data: {
                     subCategory: data.subCategory,
                     material: data.material,
                     style: data.style,
-                    season: data.season,
+                    seasonYear: data.seasonYear,
+                    seasonType: data.seasonType,
                     description: data.description,
                     updatedAt: new Date()
                 }
@@ -82,12 +84,27 @@ export async function updateProductMatrix(data: {
 
                 } else {
                     // CREATE New Variant (Added during edit)
+                    // A. Upsert Color Layer
+                    const colorObj = await tx.productColor.upsert({
+                        where: {
+                            modelId_name: {
+                                modelId: data.id,
+                                name: variant.color
+                            }
+                        },
+                        create: {
+                            modelId: data.id,
+                            name: variant.color,
+                            colorCode: variant.color.substring(0, 3).toUpperCase()
+                        },
+                        update: {}
+                    });
+
                     const newVariant = await tx.productVariant.create({
                         data: {
-                            modelId: data.id,
+                            colorId: colorObj.id,
                             sku: variant.sku,
                             barcode: variant.barcode,
-                            color: variant.color,
                             size: variant.size,
                             purchasePrice: Number(variant.purchasePrice),
                             salePrice: Number(variant.salePrice),

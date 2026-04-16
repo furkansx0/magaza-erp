@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-// Actions removed as transfer is now immediate
 import { toast } from "sonner"
 import { Check, Truck, AlertTriangle, PackageCheck } from "lucide-react"
 
@@ -28,8 +27,7 @@ interface TransferDetailProps {
             variant: {
                 barcode: string
                 size: string
-                color: string
-                model: { name: string, id?: string, brand?: string, category?: string, season?: string }
+                color: { name: string, id: string, model: { name: string, id: string, brand?: string, category?: string, seasonType?: string, seasonYear?: string } }
                 stocks?: any[]
             }
         }>
@@ -37,30 +35,31 @@ interface TransferDetailProps {
 }
 
 export function TransferDetailView({ transfer }: TransferDetailProps) {
-    // Read-only view since transfers are immediate
-
     // Data Transformation for Grid
     const gridProducts = transfer.items.reduce((acc: any[], item: any) => {
-        const modelId = item.variant.model.id || item.variant.model.name // Fallback
+        const p = item.variant.color.model
+        const color = item.variant.color
 
-        let product = acc.find(p => p.id === modelId)
+        let product = acc.find(p_ => p_.id === p.id)
         if (!product) {
             product = {
-                id: modelId,
-                name: item.variant.model.name,
-                brand: item.variant.model.brand || "-",
-                category: item.variant.model.category || "-",
-                season: item.variant.model.season || "-",
+                ...p,
                 createdAt: new Date(transfer.createdAt),
-                variants: []
+                colors: []
             }
             acc.push(product)
         }
 
-        product.variants.push({
+        let productColor = product.colors.find((c: any) => c.id === color.id)
+        if (!productColor) {
+            productColor = { ...color, variants: [] }
+            product.colors.push(productColor)
+        }
+
+        productColor.variants.push({
             ...item.variant,
             transferQuantity: item.quantitySent,
-            stocks: item.variant.stocks || [] // Assuming stocks are fetched
+            stocks: item.variant.stocks || []
         })
 
         return acc
@@ -102,11 +101,16 @@ export function TransferDetailView({ transfer }: TransferDetailProps) {
                     products={gridProducts}
                     stores={[transfer.sourceStore, transfer.targetStore]}
                     facets={(() => {
-                        const data = gridProducts.flatMap(p => p.variants.map((v: any) => ({ ...v, ...p })));
+                        const data = gridProducts.flatMap(p => 
+                            p.colors.flatMap((c: any) => 
+                                c.variants.map((v: any) => ({ ...v, ...p, color: c.name }))
+                            )
+                        );
                         const brands = Array.from(new Set(data.map((d: any) => d.brand).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
                         const categories = Array.from(new Set(data.map((d: any) => d.category).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
-                        const seasons = Array.from(new Set(data.map((d: any) => d.season).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
-                        return { brands, categories, seasons };
+                        const seasonTypes = Array.from(new Set(data.map((d: any) => d.seasonType).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
+                        const seasonYears = Array.from(new Set(data.map((d: any) => d.seasonYear).filter(Boolean))).map(v => ({ value: v as string, count: 0, checked: false }));
+                        return { brands, categories, seasonTypes, seasonYears };
                     })()}
                     totalCount={transfer.items.length}
                 />
@@ -114,5 +118,3 @@ export function TransferDetailView({ transfer }: TransferDetailProps) {
         </div>
     )
 }
-
-

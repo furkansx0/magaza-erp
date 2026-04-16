@@ -64,7 +64,16 @@ async function main() {
         // Generate Variants (2-3 Colors)
         const colorCount = 2 + Math.floor(Math.random() * 2);
         for (let c = 0; c < colorCount; c++) {
-            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            const colorName = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+            // Create Color Layer
+            const productColor = await prisma.productColor.create({
+                data: {
+                    modelId: model.id,
+                    name: colorName,
+                    colorCode: colorName.substring(0, 3).toUpperCase()
+                }
+            });
 
             // Generate Sizes (5-8 Sizes)
             const sizeStart = Math.floor(Math.random() * 3); // Start from 36, 37 or 38
@@ -83,10 +92,9 @@ async function main() {
 
                 const variant = await prisma.productVariant.create({
                     data: {
-                        modelId: model.id,
+                        colorId: productColor.id,
                         sku,
                         barcode, // collisions possible but rare in seed
-                        color,
                         size,
                         purchasePrice,
                         salePrice,

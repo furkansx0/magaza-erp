@@ -19,20 +19,28 @@ export async function searchPosProducts(query: string, storeId?: string, include
                 { barcode: { equals: query } },
                 { sku: { contains: query, mode: 'insensitive' } },
                 {
-                    model: {
-                        OR: [
-                            { name: { contains: query, mode: 'insensitive' } },
-                            { modelCode: { contains: query, mode: 'insensitive' } }
-                        ]
+                    color: {
+                        model: {
+                            OR: [
+                                { name: { contains: query, mode: 'insensitive' } },
+                                { modelCode: { contains: query, mode: 'insensitive' } }
+                            ]
+                        }
                     }
                 }
             ],
-            model: {
-                isArchived: false // STRICTLY ENFORCE NO ARCHIVED MODELS
+            color: {
+                model: {
+                    isArchived: false // STRICTLY ENFORCE NO ARCHIVED MODELS
+                }
             }
         },
         include: {
-            model: { select: { name: true, category: true, brand: true } },
+            color: {
+                include: {
+                    model: { select: { id: true, name: true, category: true, brand: true } }
+                }
+            },
             stocks: {
                 where: {
                     ...(effectiveStoreId ? { storeId: effectiveStoreId } : {})
@@ -40,25 +48,25 @@ export async function searchPosProducts(query: string, storeId?: string, include
                 select: { storeId: true, quantity: true }
             }
         },
-        orderBy: [{ color: 'asc' }, { size: 'asc' }],
+        orderBy: [{ color: { name: 'asc' } }, { size: 'asc' }],
         take: 10
     });
 
     const results = variants.map(v => {
         const totalStock = v.stocks.reduce((acc, s) => acc + s.quantity, 0);
         return {
-            id: v.modelId,
-            name: v.model.name,
+            id: v.color.model.id,
+            name: v.color.model.name,
             variantId: v.id,
             barcode: v.barcode,
             sku: v.sku,
             price: Number(v.salePrice),
             stock: totalStock,
-            color: v.color,
+            color: v.color.name,
             size: v.size,
-            modelName: v.model.name,
-            category: v.model.category,
-            brand: v.model.brand
+            modelName: v.color.model.name,
+            category: v.color.model.category,
+            brand: v.color.model.brand
         };
     });
 

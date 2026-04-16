@@ -1,4 +1,4 @@
-﻿"use server"
+"use server"
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache";
@@ -17,7 +17,7 @@ export async function getCustomer(id: string) {
                 take: 5,
                 include: {
                     items: {
-                        include: { variant: { include: { model: true } } }
+                        include: { variant: { include: { color: { include: { model: true } } } } }
                     }
                 }
             }

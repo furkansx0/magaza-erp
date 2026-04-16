@@ -11,7 +11,7 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
             items: {
                 include: {
                     variant: {
-                        include: { model: true }
+                        include: { color: { include: { model: true } } }
                     }
                 }
             },
@@ -67,9 +67,9 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
                     {sale.items.map((item, i) => (
                         <tr key={i}>
                             <td className="pt-1 pr-1 truncate max-w-[100px]">
-                                {item.variant.model.name}
+                                {item.variant.color.model.name}
                                 <br />
-                                <span className="text-[10px]">{item.variant.size}/{item.variant.color}</span>
+                                <span className="text-[10px]">{item.variant.size}/{item.variant.color.name}</span>
                             </td>
                             <td className="pt-1 text-center align-top">{item.quantity}</td>
                             <td className="pt-1 text-right align-top">

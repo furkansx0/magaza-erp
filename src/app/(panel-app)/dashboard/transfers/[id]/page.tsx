@@ -14,7 +14,9 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
                 include: {
                     variant: {
                         include: {
-                            model: true,
+                            color: {
+                                include: { model: true }
+                            },
                             stocks: true
                         }
                     }

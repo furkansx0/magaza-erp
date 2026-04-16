@@ -91,17 +91,21 @@ export async function checkGlobalStock(query: string): Promise<{ success: boolea
                     { barcode: { contains: query } },
                     { sku: { contains: query } }, // Added Variant SKU
                     {
-                        model: {
-                            OR: [
-                                { name: { contains: query } },
-                                { modelCode: { contains: query } } // Added Model Code
-                            ]
+                        color: {
+                            model: {
+                                OR: [
+                                    { name: { contains: query } },
+                                    { modelCode: { contains: query } } // Added Model Code
+                                ]
+                            }
                         }
                     }
                 ]
             },
             include: {
-                model: true,
+                color: {
+                    include: { model: true }
+                },
                 stocks: {
                     include: {
                         store: true
@@ -117,8 +121,8 @@ export async function checkGlobalStock(query: string): Promise<{ success: boolea
 
         const results: ProductStockInfo[] = variants.map(v => ({
             variantId: v.id,
-            productName: v.model.name,
-            description: `${v.size} - ${v.color}`,
+            productName: v.color.model.name,
+            description: `${v.size} - ${v.color.name}`,
             barcode: v.barcode,
             stocks: v.stocks.map(s => ({
                 storeName: s.store.name,

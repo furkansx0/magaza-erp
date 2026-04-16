@@ -249,14 +249,25 @@ async function getSystemState() {
     const models = await db.productModel.findMany({
         where: { isArchived: false },
         include: {
-            variants: {
-                where: { isArchived: false },
+            colors: {
                 include: {
-                    stocks: true
+                    variants: {
+                        where: { isArchived: false },
+                        include: {
+                            stocks: true
+                        }
+                    }
                 }
             }
         }
     });
+
+    // Transform models to a flat structure for the algorithm if needed, or update the algorithm.
+    // The algorithm expect model.variants. Let's flatten them into a temporary structure.
+    const flattenedModels = models.map(m => ({
+        ...m,
+        variants: m.colors.flatMap(c => c.variants.map(v => ({ ...v, colorName: c.name })))
+    }));
 
     // Son 30 Günlük Satışlar (Hız Analizi İçin)
     const pastDate = new Date();
@@ -285,7 +296,7 @@ async function getSystemState() {
         salesMap.set(key, current + s.quantity);
     }
 
-    return { stores, models, salesMap };
+    return { stores, models: flattenedModels, salesMap };
 }
 
 // ============================================================================
@@ -302,7 +313,10 @@ export async function generateTransferRecommendations(sourceStoreId: string, tar
             where: {
                 stocks: { some: { storeId: sourceStoreId, quantity: { gt: 2 } } }
             },
-            include: { stocks: true, model: true }
+            include: { 
+                stocks: true, 
+                color: { include: { model: true } } 
+            }
         }) as any[]
 
         const recommendations: { variantId: string, quantity: number }[] = []
@@ -500,23 +514,33 @@ export async function searchProductsForTransfer(query: string) {
                 OR: [
                     { name: { contains: query } },
                     { modelCode: { contains: query } },
-                    { variants: { some: { barcode: { contains: query } } } }
+                    { colors: { some: { variants: { some: { barcode: { contains: query } } } } } }
                 ]
             },
-            include: { variants: { include: { stocks: true } } },
+            include: { 
+                colors: { 
+                    include: { 
+                        variants: { 
+                            include: { stocks: true } 
+                        } 
+                    } 
+                } 
+            },
             take: 10
         });
 
         const results: any[] = [];
         products.forEach(p => {
-            p.variants.forEach(v => {
-                results.push({
-                    id: v.id,
-                    name: `${p.name} - ${v.color} - ${v.size}`,
-                    sku: v.sku,
-                    barcode: v.barcode,
-                    stockTotal: v.stocks.reduce((acc: number, s: any) => acc + s.quantity, 0),
-                    modelName: p.name
+            p.colors.forEach(c => {
+                c.variants.forEach(v => {
+                    results.push({
+                        id: v.id,
+                        name: `${p.name} - ${c.name} - ${v.size}`,
+                        sku: v.sku,
+                        barcode: v.barcode,
+                        stockTotal: v.stocks.reduce((acc: number, s: any) => acc + s.quantity, 0),
+                        modelName: p.name
+                    });
                 });
             });
         });

@@ -130,6 +130,8 @@ model ProductModel {
 model ProductColor {
   id        String   @id @default(uuid())
   name      String   // "Siyah", "Kırmızı"
+  colorCode String?  // "BLK", "RED" - Opsiyonel kod
+  hexCode   String?  // Optional hex for UI
   
   modelId   String
   model     ProductModel @relation(fields: [modelId], references: [id], onDelete: Cascade)

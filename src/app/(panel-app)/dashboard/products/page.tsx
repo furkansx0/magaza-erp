@@ -7,7 +7,8 @@ type SearchParams = {
     search?: string;
     brand?: string | string[];
     category?: string | string[];
-    season?: string | string[];
+    seasonType?: string | string[];
+    seasonYear?: string | string[];
     subCategory?: string | string[];
     status?: string; // "active" or "archived"
 }
@@ -23,7 +24,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     const brands = typeof resolvedParams.brand === 'string' ? [resolvedParams.brand] : resolvedParams.brand;
     const categories = typeof resolvedParams.category === 'string' ? [resolvedParams.category] : resolvedParams.category;
     const subCategories = typeof resolvedParams.subCategory === 'string' ? [resolvedParams.subCategory] : resolvedParams.subCategory;
-    const seasons = typeof resolvedParams.season === 'string' ? [resolvedParams.season] : resolvedParams.season;
+    const seasonTypes = typeof resolvedParams.seasonType === 'string' ? [resolvedParams.seasonType] : resolvedParams.seasonType;
+    const seasonYears = typeof resolvedParams.seasonYear === 'string' ? [resolvedParams.seasonYear] : resolvedParams.seasonYear;
 
     // Fetch Data for Initial Load (SSR)
     const { data: products, metadata } = await getProductsWithFilters({
@@ -33,7 +35,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         brand: brands,
         category: categories,
         subCategory: subCategories,
-        season: seasons,
+        seasonType: seasonTypes,
+        seasonYear: seasonYears,
         showArchived: resolvedParams.status === "archived"
     });
 
@@ -44,7 +47,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         brands: rawFacets.brands.map(b => ({ value: b, count: 0, checked: false })),
         categories: rawFacets.categories.map(c => ({ value: c, count: 0, checked: false })),
         subCategories: rawFacets.subCategories.map(s => ({ value: s, count: 0, checked: false })),
-        seasons: rawFacets.seasons.map(s => ({ value: s, count: 0, checked: false }))
+        seasonTypes: rawFacets.seasonTypes.map(s => ({ value: s, count: 0, checked: false })),
+        seasonYears: rawFacets.seasonYears.map(s => ({ value: s, count: 0, checked: false }))
     }
 
     const stores = await db.store.findMany({

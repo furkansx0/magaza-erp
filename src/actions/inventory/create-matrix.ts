@@ -1,4 +1,4 @@
-﻿"use server"
+"use server"
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -27,7 +27,8 @@ const MatrixSchema = z.object({
     subCategory: z.string().optional(),
     material: z.string().optional(),
     style: z.string().optional(),
-    season: z.string().optional(),
+    seasonYear: z.string().optional(),
+    seasonType: z.string().optional(),
     modelCode: z.string().optional(),
 
     existingModelId: z.string().optional(), // New: Append Mode
@@ -62,32 +63,42 @@ export async function createProductMatrix(data: MatrixFormValues) {
                         subCategory: validated.subCategory,
                         material: validated.material,
                         style: validated.style,
-                        season: validated.season,
-                        modelCode: validated.modelCode,
+                        seasonYear: validated.seasonYear,
+                        seasonType: validated.seasonType,
+                        modelCode: validated.modelCode || validated.name,
                     }
                 });
             }
 
             // 2. Create Variants & Stock
             for (const v of validated.variants) {
-                // Generate a SKU if not provided or just use pattern
+                // A. Upsert Color Layer
+                const colorObj = await tx.productColor.upsert({
+                    where: {
+                        modelId_name: {
+                            modelId: model.id,
+                            name: v.color
+                        }
+                    },
+                    create: {
+                        modelId: model.id,
+                        name: v.color,
+                        colorCode: v.color.substring(0, 3).toUpperCase()
+                    },
+                    update: {}
+                });
+
+                // B. Generate SKU
                 let finalSku = v.sku?.trim();
                 if (!finalSku) {
-                    finalSku = `${model.name.substring(0, 4)}-${v.color.substring(0, 3)}-${v.size}`.toUpperCase().replace(/\s+/g, '');
+                    finalSku = `${model.modelCode || model.name}-${colorObj.colorCode || colorObj.name.substring(0, 3)}-${v.size}`.toUpperCase().replace(/\s+/g, '');
                 }
 
-                // Fallback for barcode: If empty/whitespace (should be caught by Zod but just in case) or duplicate in batch?
-                // Actually, if user wants same barcode for all variants (bad practice but happens), we can't allow it due to DB unique.
-                // But we can fallback to using SKU as barcode if barcode is missing.
-                // However, user likely entered duplicates manually in the same batch.
-
-                // If barcode is effectively "empty" in input (passed validation somehow) or we want to support empty -> default:
                 const finalBarcode = v.barcode && v.barcode.trim().length > 0 ? v.barcode : finalSku;
 
                 const variant = await tx.productVariant.create({
                     data: {
-                        modelId: model.id,
-                        color: v.color,
+                        colorId: colorObj.id,
                         size: v.size,
                         barcode: finalBarcode,
                         sku: finalSku,

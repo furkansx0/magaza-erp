@@ -19,7 +19,9 @@ export default async function TransferListPage() {
                 include: {
                     variant: {
                         include: {
-                            model: true,
+                            color: {
+                                include: { model: true }
+                            },
                             stocks: true
                         }
                     }
