@@ -19,7 +19,7 @@ export interface SmartImportRow {
     purchasePrice: number;
     salePrice: number;
     operationType: "EKLE" | "GÜNCELLE";
-    stocks: Record<string, number>; // storeName -> quantity
+    stocks: Record<string, string | number>; // storeName -> quantity (string for "+/-" logic)
 }
 
 export interface ImportReport {
@@ -162,9 +162,13 @@ export async function runSmartImport(rows: SmartImportRow[], stores: { id: strin
 
                             // Stock Logic
                             for (const store of stores) {
-                                const qty = r.stocks[store.name] || 0;
+                                const rawVal = r.stocks[store.name];
+                                const isString = typeof rawVal === "string";
+                                const strVal = String(rawVal || "0").trim();
+                                const isIncrement = isString && (strVal.startsWith("+") || strVal.startsWith("-"));
+                                const qty = Number(rawVal) || 0;
                                 
-                                if (r.operationType === "EKLE") {
+                                if (isIncrement || r.operationType === "EKLE") {
                                     await tx.stock.upsert({
                                         where: { variantId_storeId: { variantId: variant.id, storeId: store.id } },
                                         create: { variantId: variant.id, storeId: store.id, quantity: qty },

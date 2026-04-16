@@ -243,9 +243,10 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                 salePrice: Number(r["Satış Fiyatı"]) || 0,
                 operationType: (r["İşlem Tipi"] === "GÜNCELLE" ? "GÜNCELLE" : "EKLE"),
                 stocks: stores.reduce((acc, s) => {
-                    acc[s.name] = Number(r[s.name]) || 0;
+                    const rawText = r[s.name];
+                    acc[s.name] = (typeof rawText === "string" && (rawText.startsWith("+") || rawText.startsWith("-"))) ? rawText : (Number(rawText) || 0);
                     return acc;
-                }, {} as Record<string, number>)
+                }, {} as Record<string, string | number>)
             }));
 
             const report = await runSmartImport(formattedRows, stores);
