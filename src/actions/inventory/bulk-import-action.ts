@@ -100,11 +100,11 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
 
             const newModel = await db.productModel.create({
                 data: {
-                    name: firstRow["Model Adı"] || "Bilinmeyen Model",
-                    brand: firstRow["Marka"] || null,
-                    category: firstRow["Kategori 1"] || null,
-                    subCategory: firstRow["Kategori 2"] || null,
-                    season: firstRow["Sezon"] || null,
+                    name: firstRow["Model Adı"] ? String(firstRow["Model Adı"]) : "Bilinmeyen Model",
+                    brand: firstRow["Marka"] ? String(firstRow["Marka"]) : null,
+                    category: firstRow["Kategori 1"] ? String(firstRow["Kategori 1"]) : null,
+                    subCategory: firstRow["Kategori 2"] ? String(firstRow["Kategori 2"]) : null,
+                    season: firstRow["Sezon"] ? String(firstRow["Sezon"]) : null,
                     description: "Excel İçe Aktarım",
                     gender: "Erkek"
                 }
