@@ -139,9 +139,10 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             if (!modelId) continue;
 
             for (const row of groupRows) {
-                const color = row["Renk"] || "-";
-                const size  = row["Beden"] || "-";
-                const sku   = row["Stok Kodu"] || row["SKU"] ||
+                const color = row["Renk"] ? String(row["Renk"]).trim() : "-";
+                const size  = row["Beden"] ? String(row["Beden"]).trim() : "-";
+                const rawSku = row["Stok Kodu"] || row["SKU"];
+                const sku   = rawSku ? String(rawSku).trim().toUpperCase() :
                     `${simpleSlug(parts[0])}-${simpleSlug(color)}-${size}`.toUpperCase();
 
                 let barcode = row["Barkod"] ? String(row["Barkod"]).trim() : "";
