@@ -44,29 +44,37 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         let emptyNameRows = 0;
         const validRows: ImportRow[] = [];
 
-        // ── 1. Ön Filtre ────────────────────────────────────────────────────
+        // ── 1. Ön Filtre (Model Adı + Model Kodu Kontrolü) ──────────────────
         for (const row of rows) {
-            if (!row["Model Adı"] || String(row["Model Adı"]).trim() === "") {
+            const modelName = String(row["Model Adı"] || "").trim();
+            const modelCode = String(row["Model Kodu"] || row["Stok Kodu"] || "").trim();
+
+            if (!modelName) {
                 emptyNameRows++;
                 continue;
             }
             validRows.push(row);
         }
 
-        // ── 2. Modelleri Bellekte Grupla ────────────────────────────────────
+        // ── 2. Modelleri Bellekte Grupla (Kural: Model Kodu + Marka) ────────
+        // Eğer Model Kodu yoksa Model Adı'ndan türetilir
         const modelGroups = new Map<string, ImportRow[]>();
         let missingBarcodeCount = 0;
 
         for (const row of validRows) {
-            const key = `${row["Model Adı"]}||${row["Marka"] || ""}||${row["Kategori 1"] || ""}||${row["Kategori 2"] || ""}`;
+            const mCode = String(row["Model Kodu"] || row["Stok Kodu"] || "").trim() || String(row["Model Adı"]).trim();
+            const mBrand = String(row["Marka"] || "").trim();
+            const key = `${mCode}||${mBrand}`;
+
             if (!modelGroups.has(key)) modelGroups.set(key, []);
             modelGroups.get(key)!.push(row);
+
             if (!row["Barkod"] || String(row["Barkod"]).trim() === "") {
                 missingBarcodeCount++;
             }
         }
 
-        // ── 3. Tüm Barkodları Önceden Rezerve Et (tek atomik işlem) ─────────
+        // ── 3. Barkod Rezervasyonu ──────────────────────────────────────────
         let generatedBarcodes: string[] = [];
         if (missingBarcodeCount > 0) {
             const res = await generateNextBarcodes(missingBarcodeCount);
@@ -77,43 +85,59 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             }
         }
 
-        // ── 4. Mevcut Modelleri TEK SORGUDA Belleğe Çek ─────────────────────
-        // Sorgulayacağımız model adlarını topla
-        const neededModelNames = Array.from(modelGroups.keys()).map(k => k.split("||")[0]);
+        // ── 4. Mevcut Modelleri Getir & Upsert ──────────────────────────────
+        // modelCode + brand ikilisine göre ara
+        const neededCodes = Array.from(modelGroups.keys()).map(k => k.split("||")[0]);
         const existingModels = await db.productModel.findMany({
-            where: { name: { in: neededModelNames } },
-            select: { id: true, name: true, brand: true }
+            where: { modelCode: { in: neededCodes } },
+            select: { id: true, modelCode: true, brand: true }
         });
-        // name||brand → id
+
         const modelMap = new Map<string, string>();
         for (const m of existingModels) {
-            modelMap.set(`${m.name}||${m.brand || ""}`, m.id);
+            modelMap.set(`${m.modelCode}||${m.brand || ""}`, m.id);
         }
 
-        // ── 5. Eksik Modelleri Oluştur ───────────────────────────────────────
-        // (createMany modelde id dönmediği için tek tek create yapıyoruz — ama sadece eksikler)
+        let modelsCreated = 0;
+        let modelsUpdated = 0;
+
         for (const [key, groupRows] of modelGroups) {
-            if (modelMap.has(key.replace(/\|\|[^|]*$/, "") + "||" + (key.split("||")[1] || ""))) continue;
+            const [mCode, mBrand] = key.split("||");
             const firstRow = groupRows[0];
-            const lookupKey = `${firstRow["Model Adı"]}||${firstRow["Marka"] || ""}`;
-            if (modelMap.has(lookupKey)) continue; // başka gruptan zaten oluşturulmuş
+            const existingId = modelMap.get(key);
 
-            const newModel = await db.productModel.create({
-                data: {
-                    name: firstRow["Model Adı"] ? String(firstRow["Model Adı"]) : "Bilinmeyen Model",
-                    brand: firstRow["Marka"] ? String(firstRow["Marka"]) : null,
-                    category: firstRow["Kategori 1"] ? String(firstRow["Kategori 1"]) : null,
-                    subCategory: firstRow["Kategori 2"] ? String(firstRow["Kategori 2"]) : null,
-                    season: firstRow["Sezon"] ? String(firstRow["Sezon"]) : null,
-                    description: "Excel İçe Aktarım",
-                    gender: "Erkek"
-                }
-            });
-            modelMap.set(lookupKey, newModel.id);
+            if (existingId) {
+                // Mevcut modeli güncelle (Kategori, Sezon vb. değişmiş olabilir)
+                await db.productModel.update({
+                    where: { id: existingId },
+                    data: {
+                        name: String(firstRow["Model Adı"]).trim(),
+                        category: firstRow["Kategori 1"] ? String(firstRow["Kategori 1"]).trim() : undefined,
+                        subCategory: firstRow["Kategori 2"] ? String(firstRow["Kategori 2"]).trim() : undefined,
+                        season: firstRow["Sezon"] ? String(firstRow["Sezon"]).trim() : undefined,
+                    }
+                });
+                modelsUpdated++;
+            } else {
+                // Yeni model oluştur
+                const newModel = await db.productModel.create({
+                    data: {
+                        name: String(firstRow["Model Adı"]).trim(),
+                        modelCode: mCode,
+                        brand: mBrand || null,
+                        category: firstRow["Kategori 1"] ? String(firstRow["Kategori 1"]).trim() : null,
+                        subCategory: firstRow["Kategori 2"] ? String(firstRow["Kategori 2"]).trim() : null,
+                        season: firstRow["Sezon"] ? String(firstRow["Sezon"]).trim() : null,
+                        description: "Excel İçe Aktarım",
+                        gender: "Erkek"
+                    }
+                });
+                modelMap.set(key, newModel.id);
+                modelsCreated++;
+            }
         }
 
-        // ── 6. Mevcut Varyantları TEK SORGUDA Belleğe Çek ───────────────────
-        // Tüm barkod ve SKU'ları topla
+        // ── 5. Varyant Hazırlığı ─────────────────────────────────────────────
         const allBarcodes: string[] = [];
         const allSkus: string[] = [];
         let tempBarcodeIdx = 0;
@@ -121,7 +145,6 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         const simpleSlug = (txt: string) =>
             txt.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().substring(0, 6);
 
-        // Önce tüm satırların barcode/sku değerlerini hesapla
         type PreparedRow = {
             row: ImportRow;
             modelId: string;
@@ -133,17 +156,16 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         const prepared: PreparedRow[] = [];
 
         for (const [key, groupRows] of modelGroups) {
-            const parts = key.split("||");
-            const lookupKey = `${parts[0]}||${parts[1] || ""}`;
-            const modelId = modelMap.get(lookupKey);
+            const modelId = modelMap.get(key);
             if (!modelId) continue;
 
             for (const row of groupRows) {
                 const color = row["Renk"] ? String(row["Renk"]).trim() : "-";
                 const size  = row["Beden"] ? String(row["Beden"]).trim() : "-";
                 const rawSku = row["Stok Kodu"] || row["SKU"];
-                const sku   = rawSku ? String(rawSku).trim().toUpperCase() :
-                    `${simpleSlug(parts[0])}-${simpleSlug(color)}-${size}`.toUpperCase();
+                
+                const sku = rawSku ? String(rawSku).trim().toUpperCase() :
+                    `${simpleSlug(key.split("||")[0])}-${simpleSlug(color)}-${size}`.toUpperCase();
 
                 let barcode = row["Barkod"] ? String(row["Barkod"]).trim() : "";
                 if (!barcode) {
@@ -158,7 +180,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             }
         }
 
-        // Tek sorguda mevcut varyantları çek
+        // ── 6. Mevcut Varyantları & Stokları Çek ─────────────────────────────
         const existingVariants = await db.productVariant.findMany({
             where: {
                 OR: [
@@ -166,8 +188,9 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                     { sku:     { in: allSkus } }
                 ]
             },
-            select: { id: true, barcode: true, sku: true, salePrice: true, purchasePrice: true }
+            include: { stocks: true }
         });
+
         const existingBarcodeMap = new Map<string, typeof existingVariants[0]>();
         const existingSkuMap     = new Map<string, typeof existingVariants[0]>();
         for (const v of existingVariants) {
@@ -175,98 +198,87 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
             if (v.sku)     existingSkuMap.set(v.sku, v);
         }
 
-        // ── 7. Yeni ve Güncellenecek Satırları Ayır ──────────────────────────
-        const toCreate: typeof prepared = [];
-        const toUpdate: { id: string; purchasePrice: number; salePrice: number }[] = [];
+        // ── 7. Upsert Döngüsü ───────────────────────────────────────────────
+        let variantsCreated = 0;
+        let variantsUpdated = 0;
+        let stocksIncremented = 0;
 
         for (const p of prepared) {
             const existing = existingBarcodeMap.get(p.barcode) || existingSkuMap.get(p.sku);
+
             if (existing) {
-                toUpdate.push({
-                    id: existing.id,
-                    purchasePrice: Number(p.row["Alış Fiyatı"]) || Number(existing.purchasePrice),
-                    salePrice:     Number(p.row["Satış Fiyatı"]) || Number(existing.salePrice),
-                });
-            } else {
-                toCreate.push(p);
-            }
-        }
-
-        // ── 8. Güncellemeleri Toplu Yap (Her biri tek UPDATE, $transaction YOK) ──
-        for (const u of toUpdate) {
-            await db.productVariant.update({
-                where: { id: u.id },
-                data: { purchasePrice: u.purchasePrice, salePrice: u.salePrice }
-            });
-        }
-
-        // ── 9. Yeni Varyantları createMany ile TEK SQL'DE Ekle ───────────────
-        let newVariantIds: string[] = [];
-        if (toCreate.length > 0) {
-            // createMany id döndürmez, sonra geri okumalıyız
-            await db.productVariant.createMany({
-                data: toCreate.map(p => ({
-                    modelId:       p.modelId,
-                    color:         p.color,
-                    size:          p.size,
-                    sku:           p.sku,
-                    barcode:       p.barcode,
-                    purchasePrice: Number(p.row["Alış Fiyatı"]) || 0,
-                    salePrice:     Number(p.row["Satış Fiyatı"]) || 0,
-                })),
-                skipDuplicates: true  // çakışma olursa sessizce atla
-            });
-
-            // Oluşturulan varyantları geri oku (id'leri almak için)
-            const createdVariants = await db.productVariant.findMany({
-                where: { barcode: { in: toCreate.map(p => p.barcode) } },
-                select: { id: true, barcode: true }
-            });
-            const createdBarcodeToId = new Map(createdVariants.map(v => [v.barcode, v.id]));
-
-            // ── 10. Stokları createMany ile TEK SQL'DE Ekle ─────────────────
-            const stocksToCreate: { variantId: string; storeId: string; quantity: number }[] = [];
-
-            for (const p of toCreate) {
-                const variantId = createdBarcodeToId.get(p.barcode);
-                if (!variantId) continue;
-
-                for (const store of stores) {
-                    const quantity = Number(p.row[store.name]);
-                    if (!isNaN(quantity) && quantity >= 0) {
-                        stocksToCreate.push({ variantId, storeId: store.id, quantity });
+                // 1. Fiyatları Güncelle (Sync)
+                await db.productVariant.update({
+                    where: { id: existing.id },
+                    data: {
+                        purchasePrice: Number(p.row["Alış Fiyatı"]) || Number(existing.purchasePrice),
+                        salePrice:     Number(p.row["Satış Fiyatı"]) || Number(existing.salePrice),
                     }
-                }
-            }
-
-            if (stocksToCreate.length > 0) {
-                await db.stock.createMany({
-                    data: stocksToCreate,
-                    skipDuplicates: true
                 });
-            }
+                variantsUpdated++;
 
-            newVariantIds = createdVariants.map(v => v.id);
+                // 2. Stokları Üzerine Ekle (Increment)
+                for (const store of stores) {
+                    const incomingQty = Number(p.row[store.name]);
+                    if (isNaN(incomingQty) || incomingQty <= 0) continue;
+
+                    const currentStock = existing.stocks.find(s => s.storeId === store.id);
+                    await db.stock.upsert({
+                        where: {
+                            variantId_storeId: {
+                                variantId: existing.id,
+                                storeId: store.id
+                            }
+                        },
+                        update: { quantity: { increment: incomingQty } },
+                        create: {
+                            variantId: existing.id,
+                            storeId: store.id,
+                            quantity: incomingQty
+                        }
+                    });
+                    stocksIncremented++;
+                }
+            } else {
+                // Yeni Varyant Oluştur
+                const newVar = await db.productVariant.create({
+                    data: {
+                        modelId:       p.modelId,
+                        color:         p.color,
+                        size:          p.size,
+                        sku:           p.sku,
+                        barcode:       p.barcode,
+                        purchasePrice: Number(p.row["Alış Fiyatı"]) || 0,
+                        salePrice:     Number(p.row["Satış Fiyatı"]) || 0,
+                        stocks: {
+                            create: stores.map(s => {
+                                const qty = Number(p.row[s.name]);
+                                return (!isNaN(qty) && qty > 0) ? { storeId: s.id, quantity: qty } : null;
+                            }).filter(Boolean) as any
+                        }
+                    }
+                });
+                variantsCreated++;
+            }
         }
 
         revalidatePath("/dashboard/products");
 
-        const msg = `✅ İşlem Tamamlandı!\n\n` +
-            `📥 Toplam Gelen: ${totalRows}\n` +
-            `✨ Yeni Eklenen: ${toCreate.length}\n` +
-            `🔄 Güncellenen: ${toUpdate.length}\n` +
-            `🚫 Atlanan (İsmi Yok): ${emptyNameRows}\n` +
-            `⚡ Kullanılan Sorgu: ~${4 + existingModels.length + toUpdate.length} (önceden: ${validRows.length * 5}+)`;
+        const msg = `🚀 Akıllı Import Tamamlandı!\n\n` +
+            `📂 Modeller: ${modelsCreated} Yeni, ${modelsUpdated} Güncellendi\n` +
+            `🏷️ Varyantlar: ${variantsCreated} Yeni, ${variantsUpdated} Fiyatı Senkronize Edildi\n` +
+            `📦 Stoklar: ${stocksIncremented} Mağaza Stoğu Artırıldı\n` +
+            `🚫 Hatalı Satırlar: ${emptyNameRows}`;
 
         return {
             success: true,
             message: msg,
-            newVariants: [],   // createMany sonrası tam nesne dönmüyor, boş array kabul edilebilir
+            newVariants: [],
             diagnostics: { total: totalRows, valid: validRows.length, skipped: emptyNameRows }
         };
 
     } catch (error: any) {
-        console.error("Bulk Import Error:", error);
+        console.error("Smart Import Error:", error);
         return { success: false, error: "İçe aktarım hatası: " + error.message }
     }
 }
