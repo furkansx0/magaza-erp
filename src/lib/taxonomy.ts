@@ -9,61 +9,30 @@ export type TaxonomyNode = {
 
 export const PRODUCT_TAXONOMY: TaxonomyNode[] = [
     {
-        label: "Erkek",
-        value: "Erkek",
+        label: "Ayakkabı",
+        value: "Ayakkabı",
         children: [
-            {
-                label: "Ayakkabı",
-                value: "Ayakkabı",
-                children: [
-                    { label: "Klasik", value: "Klasik" },
-                    { label: "Spor", value: "Spor" },
-                    { label: "Bot", value: "Bot" },
-                    { label: "Günlük", value: "Günlük" },
-                    { label: "Terlik/Sandalet", value: "Terlik" }
-                ]
-            },
-            {
-                label: "Giyim",
-                value: "Giyim",
-                children: [
-                    { label: "T-Shirt", value: "T-Shirt" },
-                    { label: "Pantolon", value: "Pantolon" },
-                    { label: "Mont/Kaban", value: "Mont" }
-                ]
-            }
+            { label: "Spor Ayakkabı", value: "Spor Ayakkabı" },
+            { label: "Casual Ayakkabı", value: "Casual" },
+            { label: "Bot", value: "Bot" },
+            { label: "Çizme", value: "Çizme" },
+            { label: "Klasik Ayakkabı", value: "Klasik" },
+            { label: "Terlik & Sandalet", value: "Terlik" },
+            { label: "Sneaker", value: "Sneaker" },
+            { label: "Outdoor / Maraton", value: "Outdoor" }
         ]
     },
     {
-        label: "Kadın",
-        value: "Kadın",
+        label: "Giyim",
+        value: "Giyim",
         children: [
-            {
-                label: "Ayakkabı",
-                value: "Ayakkabı",
-                children: [
-                    { label: "Topuklu", value: "Topuklu" },
-                    { label: "Bot/Çizme", value: "Bot" },
-                    { label: "Spor", value: "Spor" },
-                    { label: "Sandalet", value: "Sandalet" }
-                ]
-            }
-            // ... more categories
-        ]
-    },
-    {
-        label: "Çocuk",
-        value: "Çocuk",
-        children: [
-            {
-                label: "Ayakkabı",
-                value: "Ayakkabı",
-                children: [
-                    { label: "Spor", value: "Spor" },
-                    { label: "Bot", value: "Bot" },
-                    { label: "Okul", value: "Okul" }
-                ]
-            }
+            { label: "T-Shirt", value: "T-Shirt" },
+            { label: "Pantolon", value: "Pantolon" },
+            { label: "Mont & Kaban", value: "Mont" },
+            { label: "Gömlek", value: "Gömlek" },
+            { label: "Sweatshirt", value: "Sweatshirt" },
+            { label: "Eşofman", value: "Eşofman" },
+            { label: "Çorap", value: "Çorap" }
         ]
     }
 ];

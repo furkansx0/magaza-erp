@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import * as XLSX from "xlsx"
@@ -36,7 +36,8 @@ export function ExcelImportDialog({ stores, onSuccess }: ExcelImportDialogProps)
         const header = {
             "Model Adı": "Örn: Slim Fit Gömlek",
             "Marka": "Örn: Zara",
-            "Kategori": "Giyim",
+            "Kategori 1": "Ayakkabı",
+            "Kategori 2": "Spor Ayakkabı",
             "Sezon": "2024 Yaz",
             "Renk": "Kırmızı",
             "Beden": "M",

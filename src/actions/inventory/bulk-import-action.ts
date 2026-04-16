@@ -7,7 +7,8 @@ import { generateNextBarcodes } from "./barcode-actions";
 interface ImportRow {
     "Model Adı"?: string;
     "Marka"?: string;
-    "Kategori"?: string;
+    "Kategori 1"?: string;
+    "Kategori 2"?: string;
     "Sezon"?: string;
     "Renk"?: string;
     "Beden"?: string;
@@ -57,7 +58,7 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
         let missingBarcodeCount = 0;
 
         for (const row of validRows) {
-            const key = `${row["Model Adı"]}||${row["Marka"] || ""}||${row["Kategori"] || ""}`;
+            const key = `${row["Model Adı"]}||${row["Marka"] || ""}||${row["Kategori 1"] || ""}||${row["Kategori 2"] || ""}`;
             if (!modelGroups.has(key)) modelGroups.set(key, []);
             modelGroups.get(key)!.push(row);
             if (!row["Barkod"] || String(row["Barkod"]).trim() === "") {
@@ -101,7 +102,8 @@ export async function importProducts(rows: ImportRow[], stores: { id: string, na
                 data: {
                     name: firstRow["Model Adı"] || "Bilinmeyen Model",
                     brand: firstRow["Marka"] || null,
-                    category: firstRow["Kategori"] || null,
+                    category: firstRow["Kategori 1"] || null,
+                    subCategory: firstRow["Kategori 2"] || null,
                     season: firstRow["Sezon"] || null,
                     description: "Excel İçe Aktarım",
                     gender: "Erkek"

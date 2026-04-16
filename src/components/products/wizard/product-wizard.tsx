@@ -116,8 +116,6 @@ export function ProductWizard({
         gender: "Erkek",
         category: "",
         subCategory: "",
-        material: "",
-        style: "",
         season: "2024 Yaz",
         description: "",
     })
@@ -133,8 +131,6 @@ export function ProductWizard({
                     gender: initialProduct.gender || "Erkek",
                     category: initialProduct.category || "",
                     subCategory: initialProduct.subCategory || "",
-                    material: initialProduct.material || "",
-                    style: initialProduct.style || "",
                     season: initialProduct.season || "2024 Yaz",
                     description: initialProduct.description || ""
                 })
@@ -204,8 +200,6 @@ export function ProductWizard({
                     gender: "Erkek",
                     category: "",
                     subCategory: "",
-                    material: "",
-                    style: "",
                     season: "2024 Yaz",
                     description: "",
                 })
@@ -216,9 +210,12 @@ export function ProductWizard({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open])
 
-    // Taxonomy Helpers (for suggestions, but now we assume dynamic)
-    const currentGenderNode = React.useMemo(() => PRODUCT_TAXONOMY.find(t => t.value === model.gender), [model.gender])
-    const defaultCategories = currentGenderNode?.children?.map(c => c.value) || []
+    // Taxonomy Helpers
+    const categoryOptions = React.useMemo(() => PRODUCT_TAXONOMY.map(t => t.value), [])
+    const subCategoryOptions = React.useMemo(() => {
+        const catNode = PRODUCT_TAXONOMY.find(t => t.value === model.category)
+        return catNode?.children?.map(c => c.value) || []
+    }, [model.category])
 
     // Step 2 State
     const [variantGroups, setVariantGroups] = React.useState<VariantGroup[]>([])
@@ -570,29 +567,26 @@ export function ProductWizard({
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Kategori</Label>
-                                    <CreatableSelect
-                                        placeholder="Kategori Seç veya Yaz"
-                                        options={defaultCategories}
-                                        value={model.category}
-                                        onChange={(v) => setModel({ ...model, category: v })}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
+                                               <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Materyal</Label>
-                                        <CreatableSelect options={MATERIALS} value={model.material} onChange={(v) => setModel({ ...model, material: v })} placeholder="Seç/Yaz" />
+                                        <Label>Tür / Ana Kategori</Label>
+                                        <Select value={model.category} onValueChange={(v) => setModel({ ...model, category: v, subCategory: "" })}>
+                                            <SelectTrigger className="h-10"><SelectValue placeholder="Seçiniz" /></SelectTrigger>
+                                            <SelectContent>{categoryOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Tarz (Kalıp)</Label>
-                                        <CreatableSelect options={STYLES} value={model.style} onChange={(v) => setModel({ ...model, style: v })} placeholder="Seç/Yaz" />
+                                        <Label>Detay / Alt Kategori</Label>
+                                        <CreatableSelect
+                                            placeholder="Seç veya Yaz..."
+                                            options={subCategoryOptions}
+                                            value={model.subCategory}
+                                            onChange={(v) => setModel({ ...model, subCategory: v })}
+                                        />
                                     </div>
                                 </div>
                             </div>
+                        </div>
                         </div>
                     )}
 
@@ -1000,8 +994,6 @@ export function ProductWizard({
                                         gender: "Erkek",
                                         category: "",
                                         subCategory: "",
-                                        material: "",
-                                        style: "",
                                         season: "2024 Yaz",
                                         description: "",
                                     });

@@ -73,6 +73,7 @@ interface ProductGridProps {
         brands: { checked: boolean, count: number, value: string }[]
         categories: { checked: boolean, count: number, value: string }[]
         seasons: { checked: boolean, count: number, value: string }[]
+        subCategories: { checked: boolean, count: number, value: string }[]
     }
     totalCount?: number
 }
@@ -231,6 +232,7 @@ export function ProductGrid(props: ProductGridProps) {
                     size: v.size || "-",
                     brand: p.brand || "-",
                     category: p.category || "-",
+                    subCategory: p.subCategory || "-",
                     season: p.season || "-",
                     stockTotal: 0,
                     purchasePrice: Number(v.purchasePrice),
@@ -353,11 +355,13 @@ export function ProductGrid(props: ProductGridProps) {
     // Derive Options (Client side filtering for now)
     const uniqueBrands = React.useMemo(() => Array.from(new Set(data.map(r => r.brand).filter(Boolean))).sort(), [data])
     const uniqueCategories = React.useMemo(() => Array.from(new Set(data.map(r => r.category).filter(Boolean))).sort(), [data])
+    const uniqueSubCategories = React.useMemo(() => Array.from(new Set(data.map(r => r.subCategory).filter(Boolean))).sort(), [data])
     const uniqueSeasons = React.useMemo(() => Array.from(new Set(data.map(r => r.season).filter(Boolean))).sort(), [data])
     const uniqueColors = React.useMemo(() => Array.from(new Set(data.map(r => r.color).filter(Boolean))).sort(), [data])
     const uniqueSizes = React.useMemo(() => Array.from(new Set(data.map(r => r.size).filter(Boolean))).sort(), [data])
 
     const [selectedCategories, setSelectedCategories] = React.useState<string[]>([])
+    const [selectedSubCategories, setSelectedSubCategories] = React.useState<string[]>([])
     const [selectedBrands, setSelectedBrands] = React.useState<string[]>([])
     const [selectedSeasons, setSelectedSeasons] = React.useState<string[]>([]) // New State
     const [selectedColors, setSelectedColors] = React.useState<string[]>([])
@@ -380,6 +384,7 @@ export function ProductGrid(props: ProductGridProps) {
         }
 
         if (selectedCategories.length > 0) filtered = filtered.filter(r => selectedCategories.includes(r.category))
+        if (selectedSubCategories.length > 0) filtered = filtered.filter(r => selectedSubCategories.includes(r.subCategory))
         if (selectedBrands.length > 0) filtered = filtered.filter(r => selectedBrands.includes(r.brand))
         if (selectedSeasons.length > 0) filtered = filtered.filter(r => selectedSeasons.includes(r.season)) // Filter
         if (selectedColors.length > 0) filtered = filtered.filter(r => selectedColors.includes(r.color))
@@ -644,7 +649,8 @@ export function ProductGrid(props: ProductGridProps) {
                 "Renk": row.color,
                 "Beden": row.size,
                 "Marka": row.brand,
-                "Kategori": row.category,
+                "Tür": row.category,
+                "Detay": row.subCategory,
                 "Sezon": row.season,
                 "Alış Fiyatı": row.purchasePrice,
                 "Satış Fiyatı": row.salePrice,
@@ -739,7 +745,8 @@ export function ProductGrid(props: ProductGridProps) {
 
                     {/* Filters Row - FLEX Wrap Layout */}
                     <div className="flex flex-wrap gap-1 flex-1 w-full items-center">
-                        <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Kategori" options={uniqueCategories} selected={selectedCategories} onChange={setSelectedCategories} /></div>
+                        <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Tür" options={uniqueCategories} selected={selectedCategories} onChange={setSelectedCategories} /></div>
+                        <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Detay" options={uniqueSubCategories} selected={selectedSubCategories} onChange={setSelectedSubCategories} /></div>
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Marka" options={uniqueBrands} selected={selectedBrands} onChange={setSelectedBrands} /></div>
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Sezon" options={uniqueSeasons} selected={selectedSeasons} onChange={setSelectedSeasons} /></div>
                         <div className="min-w-[80px] flex-1"><MultiSelectFilter title="Renk" options={uniqueColors} selected={selectedColors} onChange={setSelectedColors} /></div>

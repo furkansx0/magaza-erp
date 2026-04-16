@@ -12,6 +12,7 @@ type ProductFilterParams = {
     gender?: string[];
     season?: string[];
     material?: string[];
+    subCategory?: string[];
     minPrice?: number;
     maxPrice?: number;
     showArchived?: boolean; // New param
@@ -87,6 +88,10 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
 
         if (params.category && params.category.length > 0) {
             where.category = { in: params.category };
+        }
+
+        if (params.subCategory && params.subCategory.length > 0) {
+            where.subCategory = { in: params.subCategory };
         }
 
         if (params.gender && params.gender.length > 0) {
@@ -188,12 +193,12 @@ export async function getProductsWithFilters(params: ProductFilterParams) {
 
 export async function getFilterFacets() {
     try {
-        const [brands, categories, seasons] = await Promise.all([
+        const [brands, categories, seasons, subCategories] = await Promise.all([
             db.productModel.findMany({
                 select: { brand: true },
                 distinct: ['brand'],
                 where: { isArchived: false, brand: { not: null } },
-                take: 500 // Facet limiti: 10.000+ ürünlü DB'de tam tablo taramasını önler
+                take: 500
             }),
             db.productModel.findMany({
                 select: { category: true },
@@ -206,6 +211,12 @@ export async function getFilterFacets() {
                 distinct: ['season'],
                 where: { isArchived: false, season: { not: null } },
                 take: 500
+            }),
+            db.productModel.findMany({
+                select: { subCategory: true },
+                distinct: ['subCategory'],
+                where: { isArchived: false, subCategory: { not: null } },
+                take: 500
             })
         ]);
 
@@ -213,8 +224,9 @@ export async function getFilterFacets() {
             brands: brands.map(b => b.brand).filter(Boolean),
             categories: categories.map(c => c.category).filter(Boolean),
             seasons: seasons.map(s => s.season).filter(Boolean),
+            subCategories: subCategories.map(s => s.subCategory).filter(Boolean),
         };
     } catch (error) {
-        return { brands: [], categories: [], seasons: [] };
+        return { brands: [], categories: [], seasons: [], subCategories: [] };
     }
 }

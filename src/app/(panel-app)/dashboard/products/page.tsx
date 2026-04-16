@@ -8,7 +8,7 @@ type SearchParams = {
     brand?: string | string[];
     category?: string | string[];
     season?: string | string[];
-    material?: string | string[];
+    subCategory?: string | string[];
     status?: string; // "active" or "archived"
 }
 
@@ -22,8 +22,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
     const brands = typeof resolvedParams.brand === 'string' ? [resolvedParams.brand] : resolvedParams.brand;
     const categories = typeof resolvedParams.category === 'string' ? [resolvedParams.category] : resolvedParams.category;
+    const subCategories = typeof resolvedParams.subCategory === 'string' ? [resolvedParams.subCategory] : resolvedParams.subCategory;
     const seasons = typeof resolvedParams.season === 'string' ? [resolvedParams.season] : resolvedParams.season;
-    const materials = typeof resolvedParams.material === 'string' ? [resolvedParams.material] : resolvedParams.material;
 
     // Fetch Data for Initial Load (SSR)
     const { data: products, metadata } = await getProductsWithFilters({
@@ -32,8 +32,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         search: resolvedParams.search,
         brand: brands,
         category: categories,
+        subCategory: subCategories,
         season: seasons,
-        material: materials,
         showArchived: resolvedParams.status === "archived"
     });
 
@@ -43,6 +43,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     const facets = {
         brands: rawFacets.brands.map(b => ({ value: b, count: 0, checked: false })),
         categories: rawFacets.categories.map(c => ({ value: c, count: 0, checked: false })),
+        subCategories: rawFacets.subCategories.map(s => ({ value: s, count: 0, checked: false })),
         seasons: rawFacets.seasons.map(s => ({ value: s, count: 0, checked: false }))
     }
 
