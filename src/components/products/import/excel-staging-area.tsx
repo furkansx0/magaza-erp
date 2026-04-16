@@ -75,12 +75,12 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             const rawData = XLSX.utils.sheet_to_json(ws, { defval: "" });
             
             // Clean keys
-            const cleanedData = rawData.map((row: any) => {
+            const cleanedData = rawData.map((row: any, index: number) => {
                 const newRow: any = {};
                 Object.keys(row).forEach(k => {
                     newRow[k.trim()] = row[k];
                 });
-                newRow["__id"] = crypto.randomUUID(); // Stable ID for rendering and deletion
+                newRow["__id"] = `row-${index}`; // Stable traceable ID from original import
                 return newRow;
             });
 
@@ -162,7 +162,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
-        getRowId: (row) => row.__id || Math.random().toString(),
+        getRowId: (row) => row.__id,
         meta: {
             updateData: (rowIndex: number, columnId: string, value: any) => {
                 setData(old =>
@@ -202,14 +202,18 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
         getScrollElement: () => parentRef.current,
         estimateSize: () => 40,
         overscan: 10,
+        getItemKey: (index: number) => rows[index]?.id,
     });
 
     // Sub-actions
-    const handleDeleteRow = (id: string) => {
-        const newData = data.filter(r => r.__id !== id);
-        setData(newData);
-        validateData(newData);
-    }
+    const handleDeleteRow = React.useCallback((id: string) => {
+        setData(prev => prev.filter(r => r.__id !== id));
+    }, []);
+
+    // Re-validate when data changes
+    React.useEffect(() => {
+        validateData(data);
+    }, [data]);
 
     const handleImport = async () => {
         if (validationReport.errors > 0) {
@@ -365,7 +369,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                                 if (!row) return null;
                                 return (
                                     <div 
-                                        key={row.id} 
+                                        key={virtualRow.key} 
                                         className="flex hover:bg-blue-50/30 transition-colors group bg-white border-b absolute left-0 w-full"
                                         style={{
                                             height: `${virtualRow.size}px`,
