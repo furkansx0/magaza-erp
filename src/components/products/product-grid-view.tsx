@@ -748,14 +748,7 @@ export function ProductGrid(props: ProductGridProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-7 text-xs border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50"
-                            onClick={() => setStagingOpen(true)}
-                        >
-                            <FileUp className="w-3 h-3 mr-1" /> Excel Engine
-                        </Button>
+
                         <Button onClick={() => {
                             setWizardMode("create");
                             setWizardData(null);
@@ -914,7 +907,7 @@ export function ProductGrid(props: ProductGridProps) {
                         {/* Resizable Headers */}
                         {[
                             { id: 'sku', label: 'Stok Kodu' },
-                            { id: 'name', label: 'Model Adı' },
+                            { id: 'name', label: 'Model' },
                             { id: 'barcode', label: 'Barkod' },
                             { id: 'color', label: 'Renk' },
                             { id: 'size', label: 'Beden' },
@@ -928,7 +921,7 @@ export function ProductGrid(props: ProductGridProps) {
                                 <div
                                     className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors z-10"
                                     onMouseDown={(e) => startResize(e, col.id)}
-                                    onDoubleClick={() => autoResize(col.id, col.id === 'priceIn' ? 'purchasePrice' : col.id === 'priceOut' ? 'salePrice' : col.id === 'name' ? 'modelName' : col.id as any)}
+                                    onDoubleClick={() => autoResize(col.id, col.id === 'priceIn' ? 'purchasePrice' : col.id === 'priceOut' ? 'salePrice' : col.id === 'name' ? 'modelCode' : col.id as any)}
                                 />
                             </div>
                         ))}
@@ -977,7 +970,7 @@ export function ProductGrid(props: ProductGridProps) {
                                         </button>
                                     )}
                                     <span className={cn("truncate", row.type === "MODEL" && "font-bold text-blue-700", row.type === "COLOR" && "text-gray-900")}>
-                                        {row.modelName}
+                                        {row.modelCode}
                                     </span>
                                 </div>
                                 <div className="px-2 border-r h-full flex items-center font-mono text-[10px] overflow-hidden text-ellipsis">{row.barcode}</div>
@@ -1085,7 +1078,7 @@ export function ProductGrid(props: ProductGridProps) {
                             ) : (
                                 <div className="bg-gray-50 border p-3 rounded-md text-sm">
                                     <p><strong>SKU:</strong> {variantToPrint.sku}</p>
-                                    <p><strong>Model:</strong> {variantToPrint.modelName}</p>
+                                    <p><strong>Model:</strong> {variantToPrint.modelCode}</p>
                                     <p><strong>Beden/Renk:</strong> {variantToPrint.size} / {variantToPrint.color}</p>
                                     <p><strong>Stok Toplamı:</strong> {variantToPrint.stockTotal}</p>
                                 </div>

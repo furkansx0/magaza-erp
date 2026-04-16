@@ -44,14 +44,14 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
     const downloadTemplate = () => {
         const header = [
             "Cinsiyet", "Mevsim", "Ana Kategori", "Alt Kategori", "Model Kodu", 
-            "Model Adı", "Marka", "Renk", "Beden", "Barkod", 
+            "Marka", "Renk", "Beden", "Barkod", 
             "Alış Fiyatı", "Satış Fiyatı", "İşlem Tipi"
         ];
         stores.forEach(s => header.push(s.name));
 
         const dummyRow = [
             "Erkek", "Yazlık", "Ayakkabı", "Spor Ayakkabı", "GR10450", 
-            "Comfort Step", "Nike", "Siyah", "42", "8691234567890", 
+            "Nike", "Siyah", "42", "8691234567890", 
             "1200", "2500", "EKLE"
         ];
         stores.forEach(() => dummyRow.push("10"));
@@ -108,6 +108,7 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             {
                 id: "actions",
                 header: "",
+                size: 40,
                 cell: ({ row }) => (
                     <Button 
                         variant="ghost" 
@@ -119,22 +120,22 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                     </Button>
                 ),
             },
-            { accessorKey: "Cinsiyet", header: "Cinsiyet" },
-            { accessorKey: "Mevsim", header: "Mevsim" },
-            { accessorKey: "Ana Kategori", header: "Ana Kategori" },
-            { accessorKey: "Alt Kategori", header: "Alt Kategori" },
-            { accessorKey: "Model Kodu", header: "Model Kodu" },
-            { accessorKey: "Model Adı", header: "Model Adı" },
-            { accessorKey: "Marka", header: "Marka" },
-            { accessorKey: "Renk", header: "Renk" },
-            { accessorKey: "Beden", header: "Beden" },
-            { accessorKey: "Barkod", header: "Barkod" },
-            { accessorKey: "Alış Fiyatı", header: "Alış" },
-            { accessorKey: "Satış Fiyatı", header: "Satış" },
+            { accessorKey: "Cinsiyet", header: "Cinsiyet", size: 100 },
+            { accessorKey: "Mevsim", header: "Mevsim", size: 100 },
+            { accessorKey: "Ana Kategori", header: "Ana Kategori", size: 120 },
+            { accessorKey: "Alt Kategori", header: "Alt Kategori", size: 150 },
+            { accessorKey: "Model Kodu", header: "Model Kodu", size: 120 },
+            { accessorKey: "Marka", header: "Marka", size: 100 },
+            { accessorKey: "Renk", header: "Renk", size: 100 },
+            { accessorKey: "Beden", header: "Beden", size: 80 },
+            { accessorKey: "Barkod", header: "Barkod", size: 150 },
+            { accessorKey: "Alış Fiyatı", header: "Alış", size: 100 },
+            { accessorKey: "Satış Fiyatı", header: "Satış", size: 100 },
             { 
                 accessorKey: "İşlem Tipi", 
                 header: "Tip",
-                cell: ({ getValue, row }) => (
+                size: 80,
+                cell: ({ getValue }) => (
                     <span className={cn(
                         "px-2 py-0.5 rounded text-[10px] font-bold",
                         getValue() === "EKLE" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
@@ -160,6 +161,37 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
+        getRowId: (row, i) => `${row["Barkod"]}-${row["Model Kodu"]}-${row["Renk"]}-${row["Beden"]}-${i}`,
+        meta: {
+            updateData: (rowIndex: number, columnId: string, value: any) => {
+                setData(old =>
+                    old.map((row, index) => {
+                        if (index === rowIndex) {
+                            return { ...old[rowIndex], [columnId]: value }
+                        }
+                        return row
+                    })
+                )
+            },
+        },
+        defaultColumn: {
+            cell: ({ getValue, row: { index }, column: { id }, table }) => {
+                const initialValue = getValue()
+                const [value, setValue] = React.useState(initialValue)
+                const onBlur = () => {
+                    (table.options.meta as any)?.updateData(index, id, value)
+                }
+                React.useEffect(() => { setValue(initialValue) }, [initialValue])
+                return (
+                    <input
+                        value={value as string}
+                        onChange={e => setValue(e.target.value)}
+                        onBlur={onBlur}
+                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-500 rounded px-1 -mx-1"
+                    />
+                )
+            },
+        },
     });
 
     const { rows } = table.getRowModel();
@@ -194,7 +226,6 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
                 category: String(r["Ana Kategori"] || "Genel"),
                 subCategory: String(r["Alt Kategori"] || "Genel"),
                 modelCode: String(r["Model Kodu"]),
-                modelName: String(r["Model Adı"]),
                 brand: r["Marka"] ? String(r["Marka"]) : undefined,
                 color: String(r["Renk"] || "-"),
                 size: String(r["Beden"] || "-"),
@@ -310,8 +341,8 @@ export function ExcelStagingArea({ isOpen, onClose, stores }: ExcelStagingAreaPr
             <main className="flex-1 overflow-hidden relative bg-zinc-100">
                 {data.length > 0 ? (
                     <div ref={parentRef} className="h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-300">
-                        <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-                            <table className="w-full border-collapse bg-white table-fixed">
+                        <div style={{ minWidth: `${table.getTotalSize()}px`, position: 'relative' }}>
+                            <table className="w-full border-collapse bg-white table-auto">
                                 <thead className="sticky top-0 z-20 bg-white ring-1 ring-gray-200">
                                     {table.getHeaderGroups().map(headerGroup => (
                                         <tr key={headerGroup.id}>

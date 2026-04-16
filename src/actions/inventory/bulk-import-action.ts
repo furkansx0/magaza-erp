@@ -10,7 +10,6 @@ export interface SmartImportRow {
     category: string;
     subCategory: string;
     modelCode: string;
-    modelName: string;
     brand?: string;
     color: string;
     size: string;
@@ -87,10 +86,10 @@ export async function runSmartImport(rows: SmartImportRow[], stores: { id: strin
                 
                 // A. Model Upsert
                 const model = await tx.productModel.upsert({
-                    where: { modelCode: mCode },
+                    where: { modelCode: mCode } as any, // Cast to any to bypass strict ID requirement if generator is lagging
                     create: {
                         modelCode: mCode,
-                        name: first.modelName,
+                        name: mCode, // Use modelCode as name
                         brand: first.brand || "Genel",
                         gender: first.gender,
                         season: first.season,
@@ -99,7 +98,7 @@ export async function runSmartImport(rows: SmartImportRow[], stores: { id: strin
                         description: "Smart Engine Import",
                     },
                     update: {
-                        name: first.modelName,
+                        name: mCode, // Sync name with code
                         gender: first.gender,
                         season: first.season,
                         category: first.category,
