@@ -11,16 +11,13 @@ import { db } from "@/lib/db"
  */
 export async function generateNextBarcodes(count: number = 1) {
     try {
-        const generatedBarcodes: string[] = []
+        const generatedBarcodes: string[] = [];
 
-        // We use a transaction to ensure we reserve the range or update the counter safely-ish.
         await db.$transaction(async (tx) => {
             // 1. Get Current Counter
             let counter = await tx.systemCounter.findUnique({ where: { key: "barcode_seq" } });
-
             let currentVal = counter ? counter.value : 0;
 
-            // If counter is 0, initial seed from MAX
             if (currentVal === 0) {
                 const lastProduct = await tx.productVariant.findFirst({
                     where: { barcode: { startsWith: "000" } },
@@ -34,36 +31,43 @@ export async function generateNextBarcodes(count: number = 1) {
             }
 
             let attempts = 0;
-            const maxAttempts = count * 50; // Safety limit
+            const maxAttempts = count * 5; // Reduced safety limit because of bulk checking
 
             while (generatedBarcodes.length < count && attempts < maxAttempts) {
-                currentVal++; // Try next number
+                const candidatesToGenerate = count - generatedBarcodes.length;
+                const candidateBatch = [];
+                for (let i = 1; i <= candidatesToGenerate; i++) {
+                    candidateBatch.push((currentVal + i).toString().padStart(13, "0"));
+                }
 
-                const candidateObj = currentVal.toString().padStart(13, "0");
-
-                // Check collision (Manual overrides or just existing data)
-                const exists = await tx.productVariant.findUnique({
-                    where: { barcode: candidateObj }
+                // Check collision in bulk
+                const existing = await tx.productVariant.findMany({
+                    where: { barcode: { in: candidateBatch } },
+                    select: { barcode: true }
                 });
 
-                if (!exists) {
-                    generatedBarcodes.push(candidateObj);
-                }
-                // If exists, we just loop again (currentVal was incremented), skipping the busy slot.
+                const existingSet = new Set(existing.map(e => e.barcode));
 
+                for (let i = 0; i < candidateBatch.length; i++) {
+                    const candidateObj = candidateBatch[i];
+                    currentVal++; // Increment baseline
+                    if (!existingSet.has(candidateObj)) {
+                        generatedBarcodes.push(candidateObj);
+                        if (generatedBarcodes.length === count) break;
+                    }
+                }
                 attempts++;
             }
 
-            // 2. Update System Counter to the last checked value.
-            // This ensures next time we start AFTER this batch, skipping the gaps we just filled/skipped.
+            // 2. Update System Counter
             await tx.systemCounter.upsert({
                 where: { key: "barcode_seq" },
                 update: { value: currentVal },
                 create: { key: "barcode_seq", value: currentVal }
             });
         }, {
-            maxWait: 10000,
-            timeout: 20000
+            maxWait: 15000,
+            timeout: 30000
         });
 
         if (generatedBarcodes.length < count) {

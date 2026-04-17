@@ -58,7 +58,7 @@ export async function runSmartImport(rows: SmartImportRow[], stores: { id: strin
             if (res.success && res.barcodes) {
                 generatedBarcodes = res.barcodes;
             } else {
-                throw new Error("Sıralı barkod üretimi başarısız oldu.");
+                throw new Error("Barkod üretimi başarısız: " + (res.error || "Bilinmeyen hata"));
             }
         }
 

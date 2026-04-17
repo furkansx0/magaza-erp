@@ -578,7 +578,8 @@ export function ProductGrid(props: ProductGridProps) {
         color: 45,
         size: 45,
         brand: 90,
-        season: 80,
+        seasonType: 70,
+        seasonYear: 70,
         priceIn: 75,
         priceOut: 75,
         stockIn: 55, // Store columns base width
@@ -648,7 +649,8 @@ export function ProductGrid(props: ProductGridProps) {
             `${colWidths.color}px`,
             `${colWidths.size}px`,
             `${colWidths.brand}px`,
-            `${colWidths.season}px`,
+            `${colWidths.seasonType}px`,
+            `${colWidths.seasonYear}px`,
             `${colWidths.priceIn}px`,
             `${colWidths.priceOut}px`,
             ...visibleStores.map(s => `${colWidths[`store_${s.id}`] || colWidths.stockIn}px`),
@@ -673,7 +675,8 @@ export function ProductGrid(props: ProductGridProps) {
                 "Marka": row.brand,
                 "Tür": row.category,
                 "Detay": row.subCategory,
-                "Sezon": `${row.seasonType} ${row.seasonYear}`,
+                "Mevsim": row.seasonType,
+                "Sezon/Yıl": row.seasonYear,
                 "Alış Fiyatı": row.purchasePrice,
                 "Satış Fiyatı": row.salePrice,
                 "Toplam Stok": row.stockTotal
@@ -885,7 +888,8 @@ export function ProductGrid(props: ProductGridProps) {
                             { id: 'color', label: 'Renk' },
                             { id: 'size', label: 'Beden' },
                             { id: 'brand', label: 'Marka' },
-                            { id: 'season', label: 'Mevsim/Sezon' },
+                            { id: 'seasonType', label: 'Mevsim' },
+                            { id: 'seasonYear', label: 'Sezon' },
                             { id: 'priceIn', label: 'Alış', align: 'right' },
                             { id: 'priceOut', label: 'Satış', align: 'right' },
                         ].map(col => (
@@ -951,7 +955,10 @@ export function ProductGrid(props: ProductGridProps) {
                                 <div className="px-2 border-r h-full flex items-center font-bold overflow-hidden text-ellipsis">{row.size}</div>
                                 <div className="px-2 border-r h-full flex items-center overflow-hidden text-ellipsis">{row.brand}</div>
                                 <div className="px-2 border-r h-full flex items-center text-gray-500 text-[10px] overflow-hidden text-ellipsis">
-                                    {row.seasonType} / {row.seasonYear}
+                                    {row.seasonType}
+                                </div>
+                                <div className="px-2 border-r h-full flex items-center text-gray-500 text-[10px] overflow-hidden text-ellipsis">
+                                    {row.seasonYear}
                                 </div>
                                 <div className="px-2 border-r h-full flex items-center justify-end font-mono text-gray-500 overflow-hidden text-ellipsis">{formatCurrency(row.purchasePrice)}</div>
                                 <div className="px-2 border-r h-full flex items-center justify-end font-bold text-green-700 font-mono bg-green-50/50 overflow-hidden text-ellipsis">{formatCurrency(row.salePrice)}</div>
