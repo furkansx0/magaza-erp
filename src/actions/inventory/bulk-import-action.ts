@@ -36,7 +36,8 @@ export interface ImportReport {
 }
 
 /**
- * Smart Retail Engine V5 - Bulk Import Action (Professional Hierarchy)
+ * Smart Retail Engine V6 - High-Performance Bulk Import Action
+ * Using Neon SQL Faster Principles (Raw Bulk Upserts)
  */
 export async function runSmartImport(rows: SmartImportRow[], stores: { id: string, name: string }[]): Promise<ImportReport> {
     const report: ImportReport = {
@@ -77,135 +78,202 @@ export async function runSmartImport(rows: SmartImportRow[], stores: { id: strin
                 ...r,
                 modelCode: r.modelCode.trim().toUpperCase(),
                 barcode: barcode.trim(),
-                sku: sku.trim()
+                sku: sku.trim(),
+                color: r.color.trim().toUpperCase() || "-"
             };
         });
 
-        // 2. Transactional Process
+        // 2. High-Performance Bulk Transaction Execution
         await db.$transaction(async (tx) => {
-            // Group by Model Code
-            const modelGroups = new Map<string, typeof normalizedRows>();
+            
+            // ==========================================
+            // LAYER 1: PRODUCT MODELS
+            // ==========================================
+            const modelMap = new Map<string, any>();
             for (const r of normalizedRows) {
-                if (!modelGroups.has(r.modelCode)) modelGroups.set(r.modelCode, []);
-                modelGroups.get(r.modelCode)!.push(r);
-            }
-
-            for (const [mCode, mRows] of modelGroups) {
-                const first = mRows[0];
-                
-                // A. Level 1: Model Upsert
-                const model = await tx.productModel.upsert({
-                    where: { modelCode: mCode },
-                    create: {
-                        modelCode: mCode,
-                        name: mCode,
-                        brand: first.brand || "Genel",
-                        gender: first.gender,
-                        seasonYear: first.seasonYear,
-                        seasonType: first.seasonType,
-                        category: first.category,
-                        subCategory: first.subCategory,
-                        description: "Smart Engine Import V5",
-                    },
-                    update: {
-                        brand: first.brand || "Genel",
-                        gender: first.gender,
-                        seasonYear: first.seasonYear,
-                        seasonType: first.seasonType,
-                        category: first.category,
-                        subCategory: first.subCategory,
-                    }
-                });
-
-                if (model.createdAt.getTime() === model.updatedAt.getTime()) report.summary.modelsCreated++;
-
-                // Group by Color within Model
-                const colorGroups = new Map<string, typeof mRows>();
-                for (const r of mRows) {
-                    const cKey = r.color.trim().toUpperCase();
-                    if (!colorGroups.has(cKey)) colorGroups.set(cKey, []);
-                    colorGroups.get(cKey)!.push(r);
-                }
-
-                for (const [colorName, cRows] of colorGroups) {
-                    // B. Level 2: Color Upsert
-                    const productColor = await tx.productColor.upsert({
-                        where: { modelId_name: { modelId: model.id, name: colorName } },
-                        create: { modelId: model.id, name: colorName },
-                        update: {} // No metadata at color level yet
+                if (!modelMap.has(r.modelCode)) {
+                    modelMap.set(r.modelCode, {
+                        modelCode: r.modelCode,
+                        name: r.modelCode,
+                        brand: r.brand || "Genel",
+                        gender: r.gender,
+                        seasonYear: r.seasonYear,
+                        seasonType: r.seasonType,
+                        category: r.category,
+                        subCategory: r.subCategory,
+                        description: "Smart Engine Bulk V6"
                     });
+                }
+            }
+            const modelPayloads = Array.from(modelMap.values());
+            
+            const modelsResult = await tx.$queryRawUnsafe<any[]>(`
+                INSERT INTO "ProductModel" ("id", "modelCode", "name", "brand", "gender", "seasonYear", "seasonType", "category", "subCategory", "description", "updatedAt")
+                SELECT gen_random_uuid()::text, "modelCode", "name", "brand", "gender", "seasonYear", "seasonType", "category", "subCategory", "description", NOW()
+                FROM jsonb_to_recordset($1::jsonb) AS x(
+                    "modelCode" text, "name" text, "brand" text, "gender" text, 
+                    "seasonYear" text, "seasonType" text, "category" text, 
+                    "subCategory" text, "description" text
+                )
+                ON CONFLICT ("modelCode") DO UPDATE SET
+                    "brand" = coalesce(EXCLUDED."brand", "ProductModel"."brand"),
+                    "gender" = coalesce(EXCLUDED."gender", "ProductModel"."gender"),
+                    "seasonYear" = coalesce(EXCLUDED."seasonYear", "ProductModel"."seasonYear"),
+                    "seasonType" = coalesce(EXCLUDED."seasonType", "ProductModel"."seasonType"),
+                    "category" = coalesce(EXCLUDED."category", "ProductModel"."category"),
+                    "subCategory" = coalesce(EXCLUDED."subCategory", "ProductModel"."subCategory"),
+                    "updatedAt" = NOW()
+                RETURNING "id", "modelCode";
+            `, JSON.stringify(modelPayloads));
 
-                    if (productColor.createdAt.getTime() === productColor.updatedAt.getTime()) report.summary.colorsCreated++;
+            // Map model codes to their newly generated (or existing) Postgres UUIDs
+            const dbModelMap = new Map(modelsResult.map(m => [m.modelCode, m.id]));
+            report.summary.modelsCreated = modelPayloads.length;
 
-                    // C. Level 3: Variants & Stocks
-                    for (const r of cRows) {
-                        try {
-                            const variant = await tx.productVariant.upsert({
-                                where: { barcode: r.barcode },
-                                create: {
-                                    colorId: productColor.id,
-                                    barcode: r.barcode,
-                                    size: r.size,
-                                    purchasePrice: r.purchasePrice,
-                                    salePrice: r.salePrice,
-                                    sku: r.sku
-                                },
-                                update: {
-                                    purchasePrice: r.purchasePrice,
-                                    salePrice: r.salePrice,
-                                    size: r.size,
-                                    sku: r.sku
-                                }
-                            });
 
-                            if (variant.createdAt.getTime() === variant.updatedAt.getTime()) report.summary.variantsCreated++;
+            // ==========================================
+            // LAYER 2: PRODUCT COLORS
+            // ==========================================
+            const colorMap = new Map<string, any>();
+            for (const r of normalizedRows) {
+                const mId = dbModelMap.get(r.modelCode);
+                if (!mId) continue;
+                
+                const cKey = `${mId}___${r.color}`;
+                if (!colorMap.has(cKey)) {
+                    colorMap.set(cKey, { modelId: mId, name: r.color });
+                }
+            }
+            const colorPayloads = Array.from(colorMap.values());
 
-                            // Stock Logic
-                            for (const store of stores) {
-                                const rawVal = r.stocks[store.name];
-                                const isString = typeof rawVal === "string";
-                                const strVal = String(rawVal || "0").trim();
-                                const isIncrement = isString && (strVal.startsWith("+") || strVal.startsWith("-"));
-                                const qty = Number(rawVal) || 0;
-                                
-                                if (isIncrement || r.operationType === "EKLE") {
-                                    await tx.stock.upsert({
-                                        where: { variantId_storeId: { variantId: variant.id, storeId: store.id } },
-                                        create: { variantId: variant.id, storeId: store.id, quantity: qty },
-                                        update: { quantity: { increment: qty } }
-                                    });
-                                } else {
-                                    await tx.stock.upsert({
-                                        where: { variantId_storeId: { variantId: variant.id, storeId: store.id } },
-                                        create: { variantId: variant.id, storeId: store.id, quantity: qty },
-                                        update: { quantity: qty }
-                                    });
-                                }
-                            }
-                            report.summary.stocksUpdated++;
+            let dbColorMap = new Map<string, string>();
+            if (colorPayloads.length > 0) {
+                const colorsResult = await tx.$queryRawUnsafe<any[]>(`
+                    INSERT INTO "ProductColor" ("id", "modelId", "name", "updatedAt")
+                    SELECT gen_random_uuid()::text, "modelId", "name", NOW()
+                    FROM jsonb_to_recordset($1::jsonb) AS x("modelId" text, "name" text)
+                    ON CONFLICT ("modelId", "name") DO UPDATE SET "updatedAt" = NOW()
+                    RETURNING "id", "modelId", "name";
+                `, JSON.stringify(colorPayloads));
 
-                        } catch (rowErr: any) {
-                            report.summary.failedRows++;
-                            report.logs.push({ type: "error", message: `Satır Hatası (${r.barcode || r.modelCode}): ${rowErr.message}` });
-                        }
+                dbColorMap = new Map(colorsResult.map(c => [`${c.modelId}___${c.name}`, c.id]));
+            }
+            report.summary.colorsCreated = colorPayloads.length;
+
+
+            // ==========================================
+            // LAYER 3: PRODUCT VARIANTS
+            // ==========================================
+            const variantMap = new Map<string, any>();
+            for (const r of normalizedRows) {
+                const mId = dbModelMap.get(r.modelCode);
+                if (!mId) continue;
+                const cId = dbColorMap.get(`${mId}___${r.color}`);
+                if (!cId) continue;
+                
+                if (!variantMap.has(r.barcode)) {
+                    variantMap.set(r.barcode, {
+                        colorId: cId,
+                        barcode: r.barcode,
+                        size: r.size,
+                        sku: r.sku,
+                        purchasePrice: Number(r.purchasePrice),
+                        salePrice: Number(r.salePrice)
+                    });
+                }
+            }
+            const variantPayloads = Array.from(variantMap.values());
+
+            let dbVariantMap = new Map<string, string>();
+            if (variantPayloads.length > 0) {
+                const variantsResult = await tx.$queryRawUnsafe<any[]>(`
+                    INSERT INTO "ProductVariant" ("id", "colorId", "barcode", "size", "sku", "purchasePrice", "salePrice", "updatedAt")
+                    SELECT gen_random_uuid()::text, "colorId", "barcode", "size", "sku", "purchasePrice", "salePrice", NOW()
+                    FROM jsonb_to_recordset($1::jsonb) AS x(
+                        "colorId" text, "barcode" text, "size" text, "sku" text, 
+                        "purchasePrice" numeric, "salePrice" numeric
+                    )
+                    ON CONFLICT ("barcode") DO UPDATE SET
+                        "size" = EXCLUDED."size",
+                        "sku" = coalesce(EXCLUDED."sku", "ProductVariant"."sku"),
+                        "purchasePrice" = EXCLUDED."purchasePrice",
+                        "salePrice" = EXCLUDED."salePrice",
+                        "updatedAt" = NOW()
+                    RETURNING "id", "barcode";
+                `, JSON.stringify(variantPayloads));
+
+                dbVariantMap = new Map(variantsResult.map(v => [v.barcode, v.id]));
+            }
+            report.summary.variantsCreated = variantPayloads.length;
+
+
+            // ==========================================
+            // LAYER 4: STOCK UPDATES
+            // ==========================================
+            const stockSetPayloads: any[] = [];
+            const stockIncrementPayloads: any[] = [];
+
+            for (const r of normalizedRows) {
+                const vId = dbVariantMap.get(r.barcode);
+                if (!vId) {
+                    report.logs.push({ type: "warning", message: `Varyant atlandı: ${r.barcode}` });
+                    continue;
+                }
+
+                for (const store of stores) {
+                    const rawVal = r.stocks[store.name];
+                    if (rawVal === undefined || rawVal === null) continue; // Skip empty cells if mapped
+
+                    const isStr = typeof rawVal === "string";
+                    const strVal = String(rawVal || "0").trim();
+                    const isInc = isStr && (strVal.startsWith("+") || strVal.startsWith("-"));
+                    const qty = Number(rawVal) || 0;
+
+                    const p = { variantId: vId, storeId: store.id, quantity: qty };
+                    
+                    if (isInc || r.operationType === "EKLE") {
+                        stockIncrementPayloads.push(p);
+                    } else {
+                        stockSetPayloads.push(p);
                     }
                 }
             }
+
+            if (stockSetPayloads.length > 0) {
+                await tx.$executeRawUnsafe(`
+                    INSERT INTO "Stock" ("id", "variantId", "storeId", "quantity")
+                    SELECT gen_random_uuid()::text, "variantId", "storeId", "quantity"
+                    FROM jsonb_to_recordset($1::jsonb) AS x("variantId" text, "storeId" text, "quantity" int)
+                    ON CONFLICT ("variantId", "storeId") DO UPDATE SET "quantity" = EXCLUDED."quantity";
+                `, JSON.stringify(stockSetPayloads));
+            }
+
+            if (stockIncrementPayloads.length > 0) {
+                await tx.$executeRawUnsafe(`
+                    INSERT INTO "Stock" ("id", "variantId", "storeId", "quantity")
+                    SELECT gen_random_uuid()::text, "variantId", "storeId", "quantity"
+                    FROM jsonb_to_recordset($1::jsonb) AS x("variantId" text, "storeId" text, "quantity" int)
+                    ON CONFLICT ("variantId", "storeId") DO UPDATE SET "quantity" = "Stock"."quantity" + EXCLUDED."quantity";
+                `, JSON.stringify(stockIncrementPayloads));
+            }
+
+            report.summary.stocksUpdated = stockSetPayloads.length + stockIncrementPayloads.length;
+
         }, {
             timeout: 60000,
             maxWait: 15000
         });
 
-        report.logs.push({ type: "success", message: "İşlem başarıyla tamamlandı." });
+        report.logs.push({ type: "success", message: "Yüksek hızlı SQL Import başarıyla tamamlandı!" });
         revalidatePath("/dashboard/products");
         return report;
 
     } catch (err: any) {
-        console.error("Smart Import Global Error:", err);
+        console.error("Smart Import Global SQL Error:", err);
         return {
             ...report,
             success: false,
-            logs: [{ type: "error", message: `Global Hata: ${err.message}` }]
+            logs: [{ type: "error", message: `Import Hatası: ${err.message}` }]
         };
     }
 }
